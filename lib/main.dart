@@ -1,27 +1,28 @@
+import 'package:estado/service/User.dart';
 import 'package:flutter/material.dart';
 import './config.dart';
-import 'package:flutter/services.dart';
+import './module/login/Login.dart';
+import './module/main/MainApp.dart';
+
 void main(){
-  const MethodChannel('plugins.flutter.io/shared_preferences')
-  .setMockMethodCallHandler((MethodCall methodCall) async {
-    if (methodCall.method == 'getAll') {
-      return <String, dynamic>{}; // set initial values here if desired
-    }
-    return null;
-  });
   runApp(MyApp());
 }
-
+User currentUser;
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+ 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: APP_TITLE,
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.red,
       ),
       home: MyHomePage(title: APP_TITLE),
+      routes: <String,WidgetBuilder>{
+        '/login':(BuildContext context)=>new LoginForm(),
+        '/app':(BuildContext context)=>new MainApp(title: APP_TITLE,user: currentUser)
+      },
     );
   }
 }
@@ -35,22 +36,32 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
 
   @override
-  Widget build(BuildContext context) {
+  void initState() {
   
+    super.initState();
+       print("init");
+     read();
+  }
+  void read() async{
+   User u= new User();
+   print("emer morales");
+     await u.read();
+     print("my id");
+     print(u.getId());
+     setState(() {
+       currentUser=u;
+     });
+     if(u.isAuth()){
+       Navigator.pushReplacementNamed(context, '/app');
+     }else{
+        Navigator.pushReplacementNamed(context, '/login');
+     }
+    
+  }
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
         child: Column(
