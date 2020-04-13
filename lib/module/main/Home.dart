@@ -1,8 +1,26 @@
+
+import 'package:estado/service/Helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_form_bloc/flutter_form_bloc.dart';
-
 class WizardFormBloc extends FormBloc<String, String> {
-  final username = TextFieldBloc(
+   @override
+   void onLoading() async {
+    super.onLoading();
+    Helper helper=new Helper();
+    var docs=await helper.getDocuments();
+    if(docs!=null){
+     select1.updateItems(docs);
+     select1.updateInitialValue(docs[0]);
+    emitLoaded();
+    }else{
+      emitLoadFailed();
+    }
+  }
+   
+   final select1 = SelectFieldBloc(
+   items:[],
+   );
+  final documentNumber = TextFieldBloc(
     validators: [FieldBlocValidators.required],
   );
 
@@ -20,9 +38,13 @@ class WizardFormBloc extends FormBloc<String, String> {
     ],
   );
 
-  final firstName = TextFieldBloc();
+  final firstName = TextFieldBloc(
+    validators: [FieldBlocValidators.required,]
+  );
 
-  final lastName = TextFieldBloc();
+  final lastName = TextFieldBloc(
+    validators: [FieldBlocValidators.required,]
+  );
 
   final gender = SelectFieldBloc(
     items: ['Male', 'Female'],
@@ -38,14 +60,14 @@ class WizardFormBloc extends FormBloc<String, String> {
 
   final facebook = TextFieldBloc();
 
-  WizardFormBloc() {
+  WizardFormBloc():super(isLoading:true) {
     addFieldBlocs(
       step: 0,
-      fieldBlocs: [username, email, password],
+      fieldBlocs: [select1,documentNumber, firstName, lastName],
     );
     addFieldBlocs(
       step: 1,
-      fieldBlocs: [firstName, lastName, gender, birthDate],
+      fieldBlocs: [email],
     );
     addFieldBlocs(
       step: 2,
@@ -53,27 +75,14 @@ class WizardFormBloc extends FormBloc<String, String> {
     );
   }
 
-  bool _showEmailTakenError = true;
-
   @override
   void onSubmitting() async {
+
     if (state.currentStep == 0) {
-      await Future.delayed(Duration(milliseconds: 500));
-
-      if (_showEmailTakenError) {
-        _showEmailTakenError = false;
-
-        email.addError('That email is already taken');
-
-        emitFailure();
-      } else {
         emitSuccess();
-      }
     } else if (state.currentStep == 1) {
       emitSuccess();
     } else if (state.currentStep == 2) {
-      await Future.delayed(Duration(milliseconds: 500));
-
       emitSuccess();
     }
   }
@@ -85,17 +94,6 @@ class WizardForm extends StatefulWidget {
 }
 
 class _WizardFormState extends State<WizardForm> {
-  var _type = StepperType.horizontal;
-
-  void _toggleType() {
-    setState(() {
-      if (_type == StepperType.horizontal) {
-        _type = StepperType.vertical;
-      } else {
-        _type = StepperType.horizontal;
-      }
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -113,16 +111,6 @@ class _WizardFormState extends State<WizardForm> {
             ),
             child: Scaffold(
               resizeToAvoidBottomInset: false,
-              appBar: AppBar(
-                title: Text('Wizard'),
-                actions: <Widget>[
-                  IconButton(
-                      icon: Icon(_type == StepperType.horizontal
-                          ? Icons.swap_vert
-                          : Icons.swap_horiz),
-                      onPressed: _toggleType)
-                ],
-              ),
               body: SafeArea(
                 child: FormBlocListener<WizardFormBloc, String, String>(
                   onSubmitting: (context, state) => LoadingDialog.show(context),
@@ -138,9 +126,11 @@ class _WizardFormState extends State<WizardForm> {
                     LoadingDialog.hide(context);
                   },
                   child: StepperFormBlocBuilder<WizardFormBloc>(
-                    type: _type,
+                    type: StepperType.vertical,
+
                     physics: ClampingScrollPhysics(),
                     stepsBuilder: (formBloc) {
+                     
                       return [
                         _accountStep(formBloc),
                         _personalStep(formBloc),
@@ -158,34 +148,42 @@ class _WizardFormState extends State<WizardForm> {
   }
 
   FormBlocStep _accountStep(WizardFormBloc wizardFormBloc) {
+
     return FormBlocStep(
-      title: Text('Account'),
+      title: Text('General'),
+      
       content: Column(
         children: <Widget>[
+           DropdownFieldBlocBuilder(
+                          selectFieldBloc: wizardFormBloc.select1,
+                          decoration: InputDecoration(
+                            labelText: 'Tipo documento',
+                            prefixIcon: Icon(Icons.sentiment_satisfied),
+                          ),
+                          itemBuilder: (context, value){
+                            return value['nombre'];
+                          },
+                        ),
           TextFieldBlocBuilder(
-            textFieldBloc: wizardFormBloc.username,
-            keyboardType: TextInputType.emailAddress,
-            enableOnlyWhenFormBlocCanSubmit: true,
+            textFieldBloc: wizardFormBloc.documentNumber,
             decoration: InputDecoration(
-              labelText: 'Username',
+              labelText: 'Número de documento',
+              prefixIcon: Icon(Icons.credit_card),
+            ),
+          ),
+          TextFieldBlocBuilder(
+            textFieldBloc: wizardFormBloc.firstName,
+            keyboardType: TextInputType.text,
+            decoration: InputDecoration(
+              labelText: 'Apellido paterno',
               prefixIcon: Icon(Icons.person),
             ),
           ),
           TextFieldBlocBuilder(
-            textFieldBloc: wizardFormBloc.email,
-            keyboardType: TextInputType.emailAddress,
+            textFieldBloc: wizardFormBloc.lastName,
             decoration: InputDecoration(
-              labelText: 'Email',
-              prefixIcon: Icon(Icons.email),
-            ),
-          ),
-          TextFieldBlocBuilder(
-            textFieldBloc: wizardFormBloc.password,
-            keyboardType: TextInputType.emailAddress,
-            suffixButton: SuffixButton.obscureText,
-            decoration: InputDecoration(
-              labelText: 'Password',
-              prefixIcon: Icon(Icons.lock),
+              labelText: 'Apellido materno',
+              prefixIcon: Icon(Icons.person),
             ),
           ),
         ],
@@ -195,44 +193,18 @@ class _WizardFormState extends State<WizardForm> {
 
   FormBlocStep _personalStep(WizardFormBloc wizardFormBloc) {
     return FormBlocStep(
-      title: Text('Personal'),
+      title: Text('Adjuntos'),
       content: Column(
         children: <Widget>[
           TextFieldBlocBuilder(
-            textFieldBloc: wizardFormBloc.firstName,
+            textFieldBloc: wizardFormBloc.email,
             keyboardType: TextInputType.emailAddress,
             decoration: InputDecoration(
               labelText: 'First Name',
               prefixIcon: Icon(Icons.person),
             ),
           ),
-          TextFieldBlocBuilder(
-            textFieldBloc: wizardFormBloc.lastName,
-            keyboardType: TextInputType.emailAddress,
-            decoration: InputDecoration(
-              labelText: 'Last Name',
-              prefixIcon: Icon(Icons.person),
-            ),
-          ),
-          RadioButtonGroupFieldBlocBuilder<String>(
-            selectFieldBloc: wizardFormBloc.gender,
-            itemBuilder: (context, value) => value,
-            decoration: InputDecoration(
-              labelText: 'Gender',
-              prefixIcon: SizedBox(),
-            ),
-          ),
-          DateTimeFieldBlocBuilder(
-            dateTimeFieldBloc: wizardFormBloc.birthDate,
-            firstDate: DateTime(1900),
-            initialDate: DateTime.now(),
-            lastDate: DateTime.now(),
-            format: DateFormat('yyyy-MM-dd'),
-            decoration: InputDecoration(
-              labelText: 'Date of Birth',
-              prefixIcon: Icon(Icons.cake),
-            ),
-          ),
+          
         ],
       ),
     );
@@ -240,7 +212,7 @@ class _WizardFormState extends State<WizardForm> {
 
   FormBlocStep _socialStep(WizardFormBloc wizardFormBloc) {
     return FormBlocStep(
-      title: Text('Social'),
+      title: Text('Observaciones'),
       content: Column(
         children: <Widget>[
           TextFieldBlocBuilder(

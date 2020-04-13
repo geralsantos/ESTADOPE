@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:async';
 import 'dart:convert';
 class Helper{
-  Future<List>  getDocuments() async{
+  Future getDocuments() async{
     try{
       var request= await http.get(ROOT+'/registros/tipodocumento/ver/');
       return json.decode(request.body); 
