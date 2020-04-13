@@ -1,3 +1,5 @@
+import 'package:estado/module/main/MainApp.dart';
+import 'package:estado/service/User.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_form_bloc/flutter_form_bloc.dart';
 import 'package:http/http.dart' as http;
@@ -5,6 +7,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:estado/config.dart';
+
+import '../../main.dart';
+User loggedUser;
 class LoginFormBloc extends FormBloc<String, String> {
   final email = TextFieldBloc(
     validators: [
@@ -33,7 +38,7 @@ Future<bool> _login() async {
     "usuario": email.value.trim(),
     "contrasena": password.value.trim(),
   });
-print(request.body);
+//print(request.body);
 try {
     var response = json.decode(request.body);
     //print(request.body);
@@ -47,6 +52,13 @@ try {
   prefs.setString('usuario', response['usuario']);
   prefs.setInt('id', response['id']);
   prefs.setInt('ubigeo_id', response['ubigeo_id']);
+ loggedUser=new User();
+  loggedUser.setId(response['id']);
+  loggedUser.setUser(response['usuario']);
+  loggedUser.setName(response['nombres']);
+  loggedUser.setSurnames(response['apellidos']);
+  loggedUser.setUbigeoId(response['ubigeo_id']);
+  
 return true;
   }
 
@@ -74,6 +86,7 @@ return false;
 class LoginForm extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    
     return BlocProvider(
       create: (context) => LoginFormBloc(),
       child: Builder(
@@ -89,7 +102,13 @@ class LoginForm extends StatelessWidget {
               },
               onSuccess: (context, state) {
                 LoadingDialog.hide(context);
-               Navigator.pushReplacementNamed(context, '/app');
+              // Navigator.pushReplacementNamed(context, '/app');
+              Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MainApp(user:loggedUser,title: APP_TITLE,),
+          ),
+        );
               },
               onFailure: (context, state) {
                 LoadingDialog.hide(context);

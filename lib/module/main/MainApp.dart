@@ -1,6 +1,8 @@
+import 'package:estado/module/main/About.dart';
 import 'package:flutter/material.dart';
 import 'package:estado/service/User.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:estado/module/main/Home.dart';
 class MainApp extends StatefulWidget {
   MainApp({Key key, this.title,this.user}) : super(key: key);
   final String title;
@@ -12,16 +14,11 @@ class MainApp extends StatefulWidget {
 class _MyHomePageState extends State<MainApp> {
   int _counter = 0;
   String user="",name="None";
-  int id=-1,ubigeId=-1;
+  int id=-1,ubigeId=-1,_selectedDrawerIndex=1;
 
   void _incrementCounter() {
 
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
       _counter++;
     });
   }
@@ -30,6 +27,22 @@ class _MyHomePageState extends State<MainApp> {
      prefs.clear();
      Navigator.pop(context);
      Navigator.pushReplacementNamed(context, '/login');
+  }
+  void setDrawer(int index){
+     setState(() {
+      _selectedDrawerIndex=index;
+     });
+      Navigator.of(context).pop();
+  }
+  getCurrentView(){
+    switch(_selectedDrawerIndex){
+      case 1:
+      return new WizardForm();
+      case 2:
+      return new About();
+      default:
+    return new Text("error");
+    }
   }
 @override
   void initState() {
@@ -69,10 +82,16 @@ class _MyHomePageState extends State<MainApp> {
         ListTile(
           leading: Icon(Icons.home),
           title: Text('Inicio'),
+          onTap:(){
+            setDrawer(1);
+          },
         ),
         ListTile(
           leading: Icon(Icons.account_circle),
-          title: Text('Perfil'),
+          title: Text('About'),
+          onTap: (){
+          setDrawer(2);
+          },
         ),
         Divider(),
         ListTile(
@@ -83,7 +102,8 @@ class _MyHomePageState extends State<MainApp> {
       ],
     ),
   ),
-      body: Container(
+  body: getCurrentView(),
+     /* body: Container(
         padding: EdgeInsets.fromLTRB(20, 0, 20, 0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -97,12 +117,12 @@ class _MyHomePageState extends State<MainApp> {
             ),
           ],
         ),
-      ),
+      ),*/
       floatingActionButton: FloatingActionButton(
         onPressed: _incrementCounter,
         tooltip: 'Increment',
         child: Icon(Icons.camera),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      ), 
     );
   }
 }

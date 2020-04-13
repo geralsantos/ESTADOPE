@@ -12,6 +12,21 @@ class User{
     ubigeoId=prefs.getInt("ubigeo_id") ?? -1;
     //prefs.setString("cool", "my cool value");
   }
+  void setUser(String u){
+   user=u;
+  }
+void setId(int id){
+  this.id=id;
+}
+void setName(String name){
+  this.name=name;
+}
+void setSurnames(String surnames){
+  this.surnames=surnames;
+}
+void setUbigeoId(int ubigeoId){
+  this.ubigeoId=ubigeoId;
+}
  bool isAuth(){
    return id>0;
  }
