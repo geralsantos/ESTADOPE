@@ -1,4 +1,4 @@
-package com.example.estado
+package com.estado
 
 import androidx.annotation.NonNull;
 import io.flutter.embedding.android.FlutterActivity
