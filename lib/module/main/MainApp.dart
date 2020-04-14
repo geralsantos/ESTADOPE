@@ -1,8 +1,10 @@
 import 'package:estado/module/main/About.dart';
+import 'package:estado/module/main/CameraController.dart';
 import 'package:flutter/material.dart';
 import 'package:estado/service/User.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:estado/module/main/Home.dart';
+import 'package:camera/camera.dart';
 class MainApp extends StatefulWidget {
   MainApp({Key key, this.title,this.user}) : super(key: key);
   final String title;
@@ -16,8 +18,15 @@ class _MyHomePageState extends State<MainApp> {
   String user="",name="None";
   int id=-1,ubigeId=-1,_selectedDrawerIndex=1;
 
-  void _incrementCounter() {
-
+  void _incrementCounter() async {
+    final cameras = await availableCameras();
+    final firstCamera = cameras.first;
+    Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TakePictureScreen(camera: firstCamera,)
+          ),
+        );
   }
   void _exitApp() async{
      final prefs= await SharedPreferences.getInstance();
@@ -100,21 +109,7 @@ class _MyHomePageState extends State<MainApp> {
     ),
   ),
   body: getCurrentView(),
-     /* body: Container(
-        padding: EdgeInsets.fromLTRB(20, 0, 20, 0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'Hiciste click:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.display1,
-            ),
-          ],
-        ),
-      ),*/
+    
       floatingActionButton: FloatingActionButton(
         onPressed: _incrementCounter,
         tooltip: 'Increment',

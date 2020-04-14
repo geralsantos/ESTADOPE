@@ -131,7 +131,11 @@ class _WizardFormState extends State<WizardForm> {
                   },
                   child: StepperFormBlocBuilder<WizardFormBloc>(
                     type: StepperType.vertical,
-
+              
+                    onStepTapped: (FormBloc f,int i){
+                        print("tapping");
+                        print(i);
+                    },
                     physics: ClampingScrollPhysics(),
                     stepsBuilder: (formBloc) {
                      
@@ -239,7 +243,7 @@ class _WizardFormState extends State<WizardForm> {
             ),
           ),
           InputChip(
-            label: Text('Composición familiar'),
+            label: Text('Composición'),
           ),
           TextFieldBlocBuilder(
             textFieldBloc: wizardFormBloc.description,

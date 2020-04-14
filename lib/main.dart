@@ -5,6 +5,7 @@ import './module/login/Login.dart';
 import './module/main/MainApp.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 void main(){
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(MyApp());
 }
 User currentUser;
