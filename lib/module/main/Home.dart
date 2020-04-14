@@ -2,15 +2,23 @@
 import 'package:estado/service/Helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_form_bloc/flutter_form_bloc.dart';
+import 'package:estado/service/User.dart';
 class WizardFormBloc extends FormBloc<String, String> {
+  int ubigeoId;
    @override
    void onLoading() async {
     super.onLoading();
     Helper helper=new Helper();
     var docs=await helper.getDocuments();
-    if(docs!=null){
+    var types=await helper.getCaptureTypes(ubigeoId.toString());
+    var states=await helper.getStates();
+    if(docs!=null && types!=null && states!=null){
      select1.updateItems(docs);
      select1.updateInitialValue(docs[0]);
+     captureField.updateItems(types);
+     captureField.updateInitialValue(types[0]);
+     stateField.updateItems(states);
+     stateField.updateInitialValue(states[0]);
     emitLoaded();
     }else{
       emitLoadFailed();
@@ -19,24 +27,24 @@ class WizardFormBloc extends FormBloc<String, String> {
    
    final select1 = SelectFieldBloc(
    items:[],
+   validators: [FieldBlocValidators.required]
    );
-  final documentNumber = TextFieldBloc(
+   final captureField=SelectFieldBloc(
+     items: [],
+     validators: [FieldBlocValidators.required]
+   );
+   final stateField=SelectFieldBloc(
+     items: [],
+     validators: [FieldBlocValidators.required]
+   );
+  final documentNumber=TextFieldBloc(
     validators: [FieldBlocValidators.required],
   );
+ final name=TextFieldBloc(
+   validators: [FieldBlocValidators.required]
+ );
+  final description = TextFieldBloc();
 
-  final email = TextFieldBloc(
-    validators: [
-      FieldBlocValidators.required,
-      FieldBlocValidators.email,
-    ],
-  );
-
-  final password = TextFieldBloc(
-    validators: [
-      FieldBlocValidators.required,
-      FieldBlocValidators.passwordMin6Chars,
-    ],
-  );
 
   final firstName = TextFieldBloc(
     validators: [FieldBlocValidators.required,]
@@ -46,38 +54,29 @@ class WizardFormBloc extends FormBloc<String, String> {
     validators: [FieldBlocValidators.required,]
   );
 
-  final gender = SelectFieldBloc(
-    items: ['Male', 'Female'],
-  );
+  final direcction = TextFieldBloc(validators: [FieldBlocValidators.required]);
+  final populatedCenter = TextFieldBloc();
 
-  final birthDate = InputFieldBloc<DateTime, Object>(
-    validators: [FieldBlocValidators.required],
-  );
-
-  final github = TextFieldBloc();
-
-  final twitter = TextFieldBloc();
-
-  final facebook = TextFieldBloc();
-
-  WizardFormBloc():super(isLoading:true) {
+   final aux = TextFieldBloc(validators: [FieldBlocValidators.required,]);
+  WizardFormBloc( int uId):super(isLoading:true) {
+    this.ubigeoId=uId;
     addFieldBlocs(
       step: 0,
-      fieldBlocs: [select1,documentNumber, firstName, lastName],
+      fieldBlocs: [captureField,select1,documentNumber, firstName, lastName,name],
     );
     addFieldBlocs(
       step: 1,
-      fieldBlocs: [email],
+      fieldBlocs: [direcction, populatedCenter,description, stateField],
     );
     addFieldBlocs(
       step: 2,
-      fieldBlocs: [github, twitter, facebook],
+      fieldBlocs: [aux],
     );
   }
 
   @override
   void onSubmitting() async {
-
+     print("submit");
     if (state.currentStep == 0) {
         emitSuccess();
     } else if (state.currentStep == 1) {
@@ -89,6 +88,8 @@ class WizardFormBloc extends FormBloc<String, String> {
 }
 
 class WizardForm extends StatefulWidget {
+   final User user;
+   WizardForm(this.user);
   @override
   _WizardFormState createState() => _WizardFormState();
 }
@@ -97,11 +98,13 @@ class _WizardFormState extends State<WizardForm> {
 
   @override
   Widget build(BuildContext context) {
+  
     return BlocProvider(
-      create: (context) => WizardFormBloc(),
+      create: (context) => WizardFormBloc(widget.user.getubigeoId()),
       child: Builder(
         builder: (context) {
           return Theme(
+
             data: Theme.of(context).copyWith(
               inputDecorationTheme: InputDecorationTheme(
                 border: OutlineInputBorder(
@@ -130,13 +133,15 @@ class _WizardFormState extends State<WizardForm> {
                     type: StepperType.vertical,
 
                     physics: ClampingScrollPhysics(),
-                    onStepContinue:null,
                     stepsBuilder: (formBloc) {
                      
                       return [
-                        _accountStep(formBloc),
-                        _personalStep(formBloc),
-                        _socialStep(formBloc),
+                        _generalStep(formBloc),
+                       
+                        _aditionalStep(formBloc),
+                        
+                         _atachmentStep(formBloc),
+                      
                       ];
                     },
                   ),
@@ -149,18 +154,29 @@ class _WizardFormState extends State<WizardForm> {
     );
   }
 
-  FormBlocStep _accountStep(WizardFormBloc wizardFormBloc) {
+  FormBlocStep _generalStep(WizardFormBloc wizardFormBloc) {
 
     return FormBlocStep(
       title: Text('General'),
       
       content: Column(
         children: <Widget>[
+                     DropdownFieldBlocBuilder(
+                          selectFieldBloc: wizardFormBloc.captureField,
+                          decoration: InputDecoration(
+                            labelText: 'Tipo captura',
+                            prefixIcon: Icon(Icons.apps),
+                            
+                          ),
+                          itemBuilder: (context, value){
+                            return value['nombre'];
+                          },
+                        ),
            DropdownFieldBlocBuilder(
                           selectFieldBloc: wizardFormBloc.select1,
                           decoration: InputDecoration(
                             labelText: 'Tipo documento',
-                            prefixIcon: Icon(Icons.sentiment_satisfied),
+                            prefixIcon: Icon(Icons.credit_card)
                           ),
                           itemBuilder: (context, value){
                             return value['nombre'];
@@ -170,7 +186,7 @@ class _WizardFormState extends State<WizardForm> {
             textFieldBloc: wizardFormBloc.documentNumber,
             decoration: InputDecoration(
               labelText: 'Número de documento',
-              prefixIcon: Icon(Icons.credit_card),
+              prefixIcon: Icon(Icons.credit_card)
             ),
           ),
           TextFieldBlocBuilder(
@@ -178,14 +194,21 @@ class _WizardFormState extends State<WizardForm> {
             keyboardType: TextInputType.text,
             decoration: InputDecoration(
               labelText: 'Apellido paterno',
-              prefixIcon: Icon(Icons.person),
+              prefixIcon: Icon(Icons.account_circle)
             ),
           ),
           TextFieldBlocBuilder(
             textFieldBloc: wizardFormBloc.lastName,
             decoration: InputDecoration(
               labelText: 'Apellido materno',
-              prefixIcon: Icon(Icons.person),
+              prefixIcon: Icon(Icons.account_circle)
+            ),
+          ),
+           TextFieldBlocBuilder(
+            textFieldBloc: wizardFormBloc.name,
+            decoration: InputDecoration(
+              labelText: 'Nombres',
+              prefixIcon: Icon(Icons.person)
             ),
           ),
         ],
@@ -193,17 +216,71 @@ class _WizardFormState extends State<WizardForm> {
     );
   }
 
-  FormBlocStep _personalStep(WizardFormBloc wizardFormBloc) {
+
+
+  FormBlocStep _aditionalStep(WizardFormBloc wizardFormBloc) {
+    return FormBlocStep(
+      title: Text('Observaciones'),
+      content: Column(
+        children: <Widget>[
+          TextFieldBlocBuilder(
+            textFieldBloc: wizardFormBloc.direcction,
+            maxLength: 200,
+            decoration: InputDecoration(
+              labelText: 'Dirección',
+              prefixIcon: Icon(Icons.location_on),
+            ),
+          ),
+            TextFieldBlocBuilder(
+            textFieldBloc: wizardFormBloc.populatedCenter,
+            decoration: InputDecoration(
+              labelText: 'Centro poblado',
+              prefixIcon: Icon(Icons.location_city),
+            ),
+          ),
+          InputChip(
+            label: Text('Composición familiar'),
+          ),
+          TextFieldBlocBuilder(
+            textFieldBloc: wizardFormBloc.description,
+            keyboardType: TextInputType.multiline,
+            maxLines: null,
+            maxLength: 300,
+            decoration: InputDecoration(
+              labelText: 'Observaciones',
+              prefixIcon: Icon(Icons.comment),
+            ),
+          ),
+                        DropdownFieldBlocBuilder(
+                          selectFieldBloc: wizardFormBloc.stateField,
+                          decoration: InputDecoration(
+                            labelText: 'Estado de entrega',
+                            prefixIcon: Icon(Icons.list),
+                            
+                          ),
+                          itemBuilder: (context, value){
+                            return value['nombre'];
+                          },
+                        ),
+        ],
+      ),
+    );
+  }
+}
+
+  FormBlocStep _atachmentStep(WizardFormBloc wizardFormBloc) {
     return FormBlocStep(
       title: Text('Adjuntos'),
       content: Column(
         children: <Widget>[
-          TextFieldBlocBuilder(
-            textFieldBloc: wizardFormBloc.email,
-            keyboardType: TextInputType.emailAddress,
+                   TextFieldBlocBuilder(
+            textFieldBloc: wizardFormBloc.aux,
+            keyboardType: TextInputType.multiline,
+            maxLines: null,
+            maxLength: 300,
             decoration: InputDecoration(
-              labelText: 'First Name',
-              prefixIcon: Icon(Icons.person),
+              labelText: 'Observaciones',
+              prefixIcon: Icon(Icons.comment),
             ),
           ),
           
@@ -211,42 +288,6 @@ class _WizardFormState extends State<WizardForm> {
       ),
     );
   }
-
-  FormBlocStep _socialStep(WizardFormBloc wizardFormBloc) {
-    return FormBlocStep(
-      title: Text('Observaciones'),
-      content: Column(
-        children: <Widget>[
-          TextFieldBlocBuilder(
-            textFieldBloc: wizardFormBloc.github,
-            keyboardType: TextInputType.emailAddress,
-            decoration: InputDecoration(
-              labelText: 'Github',
-              prefixIcon: Icon(Icons.sentiment_satisfied),
-            ),
-          ),
-          TextFieldBlocBuilder(
-            textFieldBloc: wizardFormBloc.twitter,
-            keyboardType: TextInputType.emailAddress,
-            decoration: InputDecoration(
-              labelText: 'Twitter',
-              prefixIcon: Icon(Icons.sentiment_satisfied),
-            ),
-          ),
-          TextFieldBlocBuilder(
-            textFieldBloc: wizardFormBloc.facebook,
-            keyboardType: TextInputType.emailAddress,
-            decoration: InputDecoration(
-              labelText: 'Facebook',
-              prefixIcon: Icon(Icons.sentiment_satisfied),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class LoadingDialog extends StatelessWidget {
   static void show(BuildContext context, {Key key}) => showDialog<void>(
         context: context,

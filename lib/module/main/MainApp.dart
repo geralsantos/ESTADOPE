@@ -12,15 +12,12 @@ class MainApp extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MainApp> {
-  int _counter = 0;
+
   String user="",name="None";
   int id=-1,ubigeId=-1,_selectedDrawerIndex=1;
 
   void _incrementCounter() {
 
-    setState(() {
-      _counter++;
-    });
   }
   void _exitApp() async{
      final prefs= await SharedPreferences.getInstance();
@@ -37,7 +34,7 @@ class _MyHomePageState extends State<MainApp> {
   getCurrentView(){
     switch(_selectedDrawerIndex){
       case 1:
-      return new WizardForm();
+      return new WizardForm(widget.user);
       case 2:
       return new About();
       default:

@@ -13,14 +13,23 @@ class Helper{
 
     return null;
   }
-  Future<List>  getCaptureTypes() async{
+  Future<List>  getCaptureTypes(String id) async{
     try{
-      var request= await http.get(ROOT+'/registros/tipocaptura/ver/');
+      var request= await http.get(ROOT+'/registros/tipocaptura/ver/'+id);
       return json.decode(request.body); 
     }catch(e){
       print(e);
     }
 
+    return null;
+  }
+  Future<List> getStates() async{
+    try{
+      var request=await http.get(ROOT+'/registros/estadoentrega/ver/');
+    return json.decode(request.body); 
+    }catch(e){
+      print(e.toString());
+    }
     return null;
   }
 }
