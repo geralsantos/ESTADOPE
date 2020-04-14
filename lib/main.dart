@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import './config.dart';
 import './module/login/Login.dart';
 import './module/main/MainApp.dart';
-
+import 'package:flutter_localizations/flutter_localizations.dart';
 void main(){
   runApp(MyApp());
 }
@@ -15,6 +15,24 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: APP_TITLE,
+      supportedLocales: [
+          Locale('es', 'ES'),
+          Locale('en', 'US'),
+        ],
+        locale: Locale("es"),
+        localizationsDelegates: [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate
+        ],
+        localeResolutionCallback: (locale, supportedLocales) {
+          for (var supportedLocale in supportedLocales) {
+            if (supportedLocale.languageCode == locale.languageCode &&
+                supportedLocale.countryCode == locale.countryCode) {
+              return supportedLocale;
+            }
+          }
+          return supportedLocales.first;
+        },
       theme: ThemeData(
         primarySwatch: Colors.red,
       ),

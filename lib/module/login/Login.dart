@@ -7,8 +7,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:estado/config.dart';
-
-import '../../main.dart';
 User loggedUser;
 class LoginFormBloc extends FormBloc<String, String> {
   final email = TextFieldBloc(
@@ -41,7 +39,7 @@ Future<bool> _login() async {
 //print(request.body);
 try {
     var response = json.decode(request.body);
-    print(request.body);
+   // print(request.body);
     if(response.length==0 || response['estado']!=1){
   return false;
   }else{
