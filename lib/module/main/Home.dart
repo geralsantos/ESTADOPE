@@ -3,8 +3,12 @@ import 'package:estado/service/Helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_form_bloc/flutter_form_bloc.dart';
 import 'package:estado/service/User.dart';
+import 'package:estado/module/main/CameraController.dart';
+import 'package:camera/camera.dart';
+import 'package:estado/module/main/DisplayPicture.dart';
 class WizardFormBloc extends FormBloc<String, String> {
   int ubigeoId;
+  List<String> filePaths=new List();
    @override
    void onLoading() async {
     super.onLoading();
@@ -57,7 +61,6 @@ class WizardFormBloc extends FormBloc<String, String> {
   final direcction = TextFieldBloc(validators: [FieldBlocValidators.required]);
   final populatedCenter = TextFieldBloc();
 
-   final aux = TextFieldBloc(validators: [FieldBlocValidators.required,]);
   WizardFormBloc( int uId):super(isLoading:true) {
     this.ubigeoId=uId;
     addFieldBlocs(
@@ -70,7 +73,7 @@ class WizardFormBloc extends FormBloc<String, String> {
     );
     addFieldBlocs(
       step: 2,
-      fieldBlocs: [aux],
+      fieldBlocs: [],
     );
   }
 
@@ -144,7 +147,7 @@ class _WizardFormState extends State<WizardForm> {
                        
                         _aditionalStep(formBloc),
                         
-                         _atachmentStep(formBloc),
+                         _atachmentStep(formBloc,context),
                       
                       ];
                     },
@@ -272,21 +275,81 @@ class _WizardFormState extends State<WizardForm> {
   }
 }
 
-  FormBlocStep _atachmentStep(WizardFormBloc wizardFormBloc) {
+void atachPicture(BuildContext context,String title,String pref,WizardFormBloc model) async{
+ final cameras = await availableCameras();
+    final firstCamera = cameras.first;
+    Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TakePictureScreen(
+              camera: firstCamera,
+              title: title,
+              pref: pref,
+              callback: (String path){
+                print("my path");
+                print(path);
+                model.filePaths.add(path);
+              },
+              )
+          ),
+        );
+}
+  FormBlocStep _atachmentStep(WizardFormBloc wizardFormBloc,BuildContext context) {
+   
+
     return FormBlocStep(
       title: Text('Adjuntos'),
       content: Column(
         children: <Widget>[
-                   TextFieldBlocBuilder(
-            textFieldBloc: wizardFormBloc.aux,
-            keyboardType: TextInputType.multiline,
-            maxLines: null,
-            maxLength: 300,
-            decoration: InputDecoration(
-              labelText: 'Observaciones',
-              prefixIcon: Icon(Icons.comment),
-            ),
+            IconButton(
+        icon: Icon(Icons.credit_card),
+        iconSize: 48,
+        tooltip: 'Adjuntar foto del documento',
+        onPressed:(){
+          atachPicture(context, "Documento", "_DNI",wizardFormBloc);
+        }
+      ),
+      Text('Adjuntar foto del documento'),
+      Container(
+        height: 20,
+      ),
+       IconButton(
+        icon: Icon(Icons.person),
+        iconSize: 48,
+        tooltip: 'Adjuntar foto del beneficiario',
+        onPressed: (){
+          atachPicture(context, "Beneficiario", "_BENEFICIARIO",wizardFormBloc);
+        }
+      ),
+      Text('Adjuntar foto del beneficiario'),
+      Container(
+        height: 50,
+      ),
+      SizedBox(
+                     width: MediaQuery.of(context).size.width,
+                     //height: 48,
+                     child:RaisedButton(
+                      onPressed: (){
+                         Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DisplayPicture(
+   
+              title: "Documentos",
+              imagePath: wizardFormBloc.filePaths[0],
+
+              )
           ),
+        );
+                      },
+                       shape: new RoundedRectangleBorder(
+                      borderRadius: new BorderRadius.circular(25.0),
+                 ),
+               //  color: Colors.lightGreen,
+                 textColor: Colors.white,
+                      child: Text('VER FOTOS'),
+                    ),
+                     )
           
         ],
       ),

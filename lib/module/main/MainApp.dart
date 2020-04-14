@@ -1,10 +1,9 @@
 import 'package:estado/module/main/About.dart';
-import 'package:estado/module/main/CameraController.dart';
 import 'package:flutter/material.dart';
 import 'package:estado/service/User.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:estado/module/main/Home.dart';
-import 'package:camera/camera.dart';
+
 class MainApp extends StatefulWidget {
   MainApp({Key key, this.title,this.user}) : super(key: key);
   final String title;
@@ -17,17 +16,6 @@ class _MyHomePageState extends State<MainApp> {
 
   String user="",name="None";
   int id=-1,ubigeId=-1,_selectedDrawerIndex=1;
-
-  void _incrementCounter() async {
-    final cameras = await availableCameras();
-    final firstCamera = cameras.first;
-    Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => TakePictureScreen(camera: firstCamera,)
-          ),
-        );
-  }
   void _exitApp() async{
      final prefs= await SharedPreferences.getInstance();
      prefs.clear();
@@ -108,13 +96,7 @@ class _MyHomePageState extends State<MainApp> {
       ],
     ),
   ),
-  body: getCurrentView(),
-    
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.camera),
-      ), 
+  body: getCurrentView()
     );
   }
 }

@@ -7,10 +7,15 @@ import 'package:path_provider/path_provider.dart';
 
 class TakePictureScreen extends StatefulWidget {
   final CameraDescription camera;
-
+  final String title;
+  final String pref;
+  final Function callback;
   const TakePictureScreen({
     Key key,
     @required this.camera,
+    this.title,
+    this.pref,
+    this.callback
   }) : super(key: key);
 
   @override
@@ -47,7 +52,7 @@ class TakePictureScreenState extends State<TakePictureScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Take a picture')),
+      appBar: AppBar(title: Text(widget.title)),
       // Wait until the controller is initialized before displaying the
       // camera preview. Use a FutureBuilder to display a loading spinner
       // until the controller has finished initializing.
@@ -64,32 +69,41 @@ class TakePictureScreenState extends State<TakePictureScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        child: Icon(Icons.camera_alt),
+        child: Icon(Icons.camera),
         // Provide an onPressed callback.
         onPressed: () async {
           // Take the Picture in a try / catch block. If anything goes wrong,
           // catch the error.
+
           try {
             // Ensure that the camera is initialized.
             await _initializeControllerFuture;
 
             // Construct the path where the image should be saved using the
             // pattern package.
+            String name=widget.pref+'file.jpg';
             final path = join(
               // Store the picture in the temp directory.
               // Find the temp directory using the `path_provider` plugin.
               (await getTemporaryDirectory()).path,
-              '${DateTime.now()}.png',
+              name
+              //'${DateTime.now()}file.jpg',
             );
-
+print(path);
+ final file = File(path);
+if( file.existsSync()){
+    await file.delete();
+}
             // Attempt to take a picture and log where it's been saved.
             await _controller.takePicture(path);
-
+           if(widget.callback!=null){
+              widget.callback(path);
+           }
             // If the picture was taken, display it on a new screen.
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => DisplayPictureScreen(imagePath: path),
+                builder: (context) => DisplayPictureScreen(imagePath: path,title: widget.title,),
               ),
             );
           } catch (e) {
@@ -105,13 +119,23 @@ class TakePictureScreenState extends State<TakePictureScreen> {
 // A widget that displays the picture taken by the user.
 class DisplayPictureScreen extends StatelessWidget {
   final String imagePath;
-
-  const DisplayPictureScreen({Key key, this.imagePath}) : super(key: key);
+   final String title;
+  const DisplayPictureScreen({Key key, this.imagePath,this.title}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Display the Picture')),
+      appBar: AppBar(title: Text(title),actions: <Widget>[
+                      FlatButton(
+                      onPressed:(){
+                       
+                         Navigator.of(context).pop();
+                          Navigator.of(context).pop();
+                      },
+                      textColor: Colors.white,
+                      child: Text('ADJUNTAR'),
+                    ),
+      ],),
       // The image is stored as a file on the device. Use the `Image.file`
       // constructor with the given path to display the image.
       body: Image.file(File(imagePath)),
