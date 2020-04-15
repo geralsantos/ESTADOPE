@@ -370,6 +370,13 @@ Widget buildImagePreview(String path){
           buildImagePreview(wizardFormBloc.documentPath),
           ButtonBar(
             children: <Widget>[
+               FlatButton(
+                child: const Text('ELIMINAR'),
+                textColor: Colors.grey,
+                onPressed: () {
+                  wizardFormBloc.documentPath=null;
+                 },
+              ),
               FlatButton(
                 child: const Text('ADJUNTAR'),
                 onPressed: () {
@@ -409,6 +416,13 @@ Widget buildImagePreview(String path){
           buildImagePreview(wizardFormBloc.beneficiarioPath),
           ButtonBar(
             children: <Widget>[
+              FlatButton(
+                child: const Text('ELIMINAR'),
+                textColor: Colors.grey,
+                onPressed: () {
+                  wizardFormBloc.beneficiarioPath=null;
+                 },
+              ),
               FlatButton(
                 child: const Text('ADJUNTAR'),
                 onPressed: () {

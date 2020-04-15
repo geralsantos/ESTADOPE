@@ -36,8 +36,8 @@ class Helper{
     return null;
   }
   Future<bool> save(args,String docPath,String bePath,int ubigeo,int user,String geoLocation,compositions) async{
-    print(args);
-    var postUri = Uri.parse(ROOT+'/registros/guardarBeneficiario/');
+   try{
+   var postUri = Uri.parse(ROOT+'/registros/guardarBeneficiario/');
     var request = new http.MultipartRequest("POST", postUri);
     request.fields['tipo_captura_id'] = args['tipo_captura_id'].toString();
     request.fields['tipo_documento_id'] = args['tipo_documento_id'].toString();
@@ -52,42 +52,36 @@ class Helper{
     request.fields['georeferencia'] = geoLocation;
     request.fields['usuario_id'] = user.toString();
     request.fields['ubigeo_id'] = ubigeo.toString();
-  
- var aux=[];
+var i=0;
  for(var c in compositions){
-   var prop={"nombre":c.nombre,"cantidad":c.cantidad,"id":c.id};
-   aux.add(prop);
+  var arg={"id":c.id,"nombre":c.nombre,"cantidad":c.cantidad};
+request.fields['composicion['+i.toString()+']']=json.encode(arg);
+i++;
  }
- var compositionList=json.encode(aux);
- print(compositionList);
- request.fields['composicion']=compositionList;
-     var dformatter = new DateFormat('yyyy-MM-dd');
-     var tformatter = new DateFormat('Hms');
    if(docPath!=null){
-     String key="DNI_"+dformatter.format(DateTime.now())+"_"+tformatter.format(DateTime.now());
+
     request.files.add(
-      new http.MultipartFile.fromBytes(key, await File.fromUri(Uri.parse(docPath)).readAsBytes(), 
-      contentType: new MediaType('image', 'jpg')));
+      await http.MultipartFile.fromPath("adjuntos[0]", docPath));
    }
        if(bePath!=null){
-          String key="BENEFICIARIO_"+dformatter.format(DateTime.now())+"_"+tformatter.format(DateTime.now());
     request.files.add(
-      new http.MultipartFile.fromBytes(key, await File.fromUri(Uri.parse(bePath)).readAsBytes(), 
-      contentType: new MediaType('image', 'jpg')));
+      await http.MultipartFile.fromPath("adjuntos[1]", bePath));
    }
+http.StreamedResponse response = await request.send();
 
-    var res=await request.send().then((response){
-    
-      print(response.statusCode);
-      if (response.statusCode == 200){
-        print("Uploaded!");
-       
-      }
-    });
-      /*  res.stream.transform(utf8.decoder).listen((value) {
+/*
+response.stream.transform(utf8.decoder).listen((value) {
         print(value);
         return Future.value(value);
-      });*/
+      });
+   */
+  if(response.statusCode==200){
+    return true;
+  }
+   }catch(e){
+     print(e);
+   }
+     
     return false;
   }
 }
