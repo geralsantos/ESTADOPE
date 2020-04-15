@@ -6,9 +6,11 @@ import 'package:estado/service/User.dart';
 import 'package:estado/module/main/CameraController.dart';
 import 'package:camera/camera.dart';
 import 'package:estado/module/main/DisplayPicture.dart';
+import 'dart:io';
 class WizardFormBloc extends FormBloc<String, String> {
   int ubigeoId;
   List<String> filePaths=new List();
+  String documentPath,beneficiarioPath;
    @override
    void onLoading() async {
     super.onLoading();
@@ -23,6 +25,7 @@ class WizardFormBloc extends FormBloc<String, String> {
      captureField.updateInitialValue(types[0]);
      stateField.updateItems(states);
      stateField.updateInitialValue(states[0]);
+
     emitLoaded();
     }else{
       emitLoadFailed();
@@ -60,6 +63,7 @@ class WizardFormBloc extends FormBloc<String, String> {
 
   final direcction = TextFieldBloc(validators: [FieldBlocValidators.required]);
   final populatedCenter = TextFieldBloc();
+  final ghost=TextFieldBloc();
 
   WizardFormBloc( int uId):super(isLoading:true) {
     this.ubigeoId=uId;
@@ -73,7 +77,7 @@ class WizardFormBloc extends FormBloc<String, String> {
     );
     addFieldBlocs(
       step: 2,
-      fieldBlocs: [],
+      fieldBlocs: [ghost],
     );
   }
 
@@ -170,6 +174,7 @@ class _WizardFormState extends State<WizardForm> {
         children: <Widget>[
                      DropdownFieldBlocBuilder(
                           selectFieldBloc: wizardFormBloc.captureField,
+                          
                           decoration: InputDecoration(
                             labelText: 'Tipo captura',
                             prefixIcon: Icon(Icons.apps),
@@ -222,8 +227,6 @@ class _WizardFormState extends State<WizardForm> {
       ),
     );
   }
-
-
 
   FormBlocStep _aditionalStep(WizardFormBloc wizardFormBloc) {
     return FormBlocStep(
@@ -288,11 +291,18 @@ void atachPicture(BuildContext context,String title,String pref,WizardFormBloc m
               callback: (String path){
                 print("my path");
                 print(path);
+                model.documentPath=path;
                 model.filePaths.add(path);
               },
               )
           ),
         );
+}
+Widget buildImagePreview(String path){
+ // return Image(image:AssetImage("assets/logo.png"),);
+
+ //return path==null? Icon(Icons.image,size: 128,color: Colors.grey,):Image.file(File(path));
+ return Icon(Icons.image,size: 128,color: Colors.grey,);
 }
   FormBlocStep _atachmentStep(WizardFormBloc wizardFormBloc,BuildContext context) {
    
@@ -301,30 +311,67 @@ void atachPicture(BuildContext context,String title,String pref,WizardFormBloc m
       title: Text('Adjuntos'),
       content: Column(
         children: <Widget>[
-            IconButton(
-        icon: Icon(Icons.credit_card),
-        iconSize: 48,
-        tooltip: 'Adjuntar foto del documento',
-        onPressed:(){
-          atachPicture(context, "Documento", "_DNI",wizardFormBloc);
-        }
+          Card(
+        child:  InkWell(
+          splashColor: Colors.blue.withAlpha(30),
+          onTap: (){
+
+          },
+          child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          const ListTile(
+            leading: Icon(Icons.credit_card),
+            title: Text('Documento'),
+            
+          ),
+          buildImagePreview(wizardFormBloc.documentPath),
+          ButtonBar(
+            children: <Widget>[
+              FlatButton(
+                child: const Text('ADJUNTAR'),
+                onPressed: () {
+                  atachPicture(context, "Documento", "_DNI",wizardFormBloc);
+                 },
+              ),
+            ],
+          ),
+        ],
+      )
+        )
       ),
-      Text('Adjuntar foto del documento'),
-      Container(
-        height: 20,
+       Card(
+          
+        child:  InkWell(
+          splashColor: Colors.blue.withAlpha(30),
+          onTap: (){
+             print("cloick");
+          },
+          child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          const ListTile(
+            leading: Icon(Icons.credit_card),
+            title: Text('Beneficiario'),
+            
+          ),
+          buildImagePreview(wizardFormBloc.beneficiarioPath),
+          ButtonBar(
+            children: <Widget>[
+              FlatButton(
+                child: const Text('ADJUNTAR'),
+                onPressed: () {
+                  atachPicture(context, "Beneficiario", "_BENEFICIARIO",wizardFormBloc);
+                 },
+              ),
+            ],
+          ),
+        ],
+      )
+        )
       ),
-       IconButton(
-        icon: Icon(Icons.person),
-        iconSize: 48,
-        tooltip: 'Adjuntar foto del beneficiario',
-        onPressed: (){
-          atachPicture(context, "Beneficiario", "_BENEFICIARIO",wizardFormBloc);
-        }
-      ),
-      Text('Adjuntar foto del beneficiario'),
-      Container(
-        height: 50,
-      ),
+
+
       SizedBox(
                      width: MediaQuery.of(context).size.width,
                      //height: 48,

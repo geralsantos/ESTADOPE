@@ -88,7 +88,7 @@ class _MyHomePageState extends State<MyHomePage> {
           children: <Widget>[
              Image(
                 image:AssetImage("assets/logo.png"),
-                fit: BoxFit.contain,
+               // fit: BoxFit.contain,
                 height: 150,
                 
               ),
