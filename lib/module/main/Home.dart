@@ -7,14 +7,15 @@ import 'package:estado/module/main/CameraController.dart';
 import 'package:camera/camera.dart';
 import 'package:estado/module/main/DisplayPicture.dart';
 import 'dart:io';
+import 'package:estado/service/LocationService.dart';
 class WizardFormBloc extends FormBloc<String, String> {
-  int ubigeoId;
-  List<String> filePaths=new List();
-  String documentPath,beneficiarioPath;
+  int ubigeoId,userId;
+  String documentPath,beneficiarioPath,geoLocation;
+  Helper helper=new Helper();
    @override
    void onLoading() async {
     super.onLoading();
-    Helper helper=new Helper();
+    
     var docs=await helper.getDocuments();
     var types=await helper.getCaptureTypes(ubigeoId.toString());
     var states=await helper.getStates();
@@ -30,43 +31,55 @@ class WizardFormBloc extends FormBloc<String, String> {
     }else{
       emitLoadFailed();
     }
+    geoLocation=await getLocation();
   }
    
    final select1 = SelectFieldBloc(
+     name: 'tipo_documento_id',
    items:[],
-   validators: [FieldBlocValidators.required]
+   validators: [FieldBlocValidators.required],
+   toJson: (value)=>value['id']
    );
    final captureField=SelectFieldBloc(
+     name: 'tipo_captura_id',
      items: [],
-     validators: [FieldBlocValidators.required]
+     validators: [FieldBlocValidators.required],
+     toJson: (value)=>value['id']
    );
    final stateField=SelectFieldBloc(
+     name:'estado_entrega_id',
      items: [],
-     validators: [FieldBlocValidators.required]
+     validators: [FieldBlocValidators.required],
+     toJson: (value)=>value['id']
    );
   final documentNumber=TextFieldBloc(
+    name:'numero_documento',
     validators: [FieldBlocValidators.required],
   );
  final name=TextFieldBloc(
+   name:'nombre',
    validators: [FieldBlocValidators.required]
  );
-  final description = TextFieldBloc();
+  final description = TextFieldBloc(name:'observaciones');
 
 
   final firstName = TextFieldBloc(
+    name:'primer_apellido',
     validators: [FieldBlocValidators.required,]
   );
 
   final lastName = TextFieldBloc(
+    name:'segundo_apellido',
     validators: [FieldBlocValidators.required,]
   );
 
-  final direcction = TextFieldBloc(validators: [FieldBlocValidators.required]);
-  final populatedCenter = TextFieldBloc();
-  final ghost=TextFieldBloc();
+  final direcction = TextFieldBloc(name:'direccion',validators: [FieldBlocValidators.required]);
+  final populatedCenter = TextFieldBloc(name:'centro_poblado');
+  final ghost=TextFieldBloc(name: 'ghost');
 
-  WizardFormBloc( int uId):super(isLoading:true) {
+  WizardFormBloc( int uId,int id):super(isLoading:true) {
     this.ubigeoId=uId;
+    this.userId=id;
     addFieldBlocs(
       step: 0,
       fieldBlocs: [captureField,select1,documentNumber, firstName, lastName,name],
@@ -89,6 +102,14 @@ class WizardFormBloc extends FormBloc<String, String> {
     } else if (state.currentStep == 1) {
       emitSuccess();
     } else if (state.currentStep == 2) {
+      helper.save(
+        state.toJson(),
+        documentPath,
+        beneficiarioPath,
+        ubigeoId,
+        userId,
+        geoLocation
+        );
       emitSuccess();
     }
   }
@@ -107,7 +128,7 @@ class _WizardFormState extends State<WizardForm> {
   Widget build(BuildContext context) {
   
     return BlocProvider(
-      create: (context) => WizardFormBloc(widget.user.getubigeoId()),
+      create: (context) => WizardFormBloc(widget.user.getubigeoId(),widget.user.getId()),
       child: Builder(
         builder: (context) {
           return Theme(
@@ -115,7 +136,7 @@ class _WizardFormState extends State<WizardForm> {
             data: Theme.of(context).copyWith(
               inputDecorationTheme: InputDecorationTheme(
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
+                 // borderRadius: BorderRadius.circular(20),
                 ),
               ),
             ),
@@ -288,11 +309,16 @@ void atachPicture(BuildContext context,String title,String pref,WizardFormBloc m
               camera: firstCamera,
               title: title,
               pref: pref,
-              callback: (String path){
+              callback: (String path,String pref){
                 print("my path");
                 print(path);
-                model.documentPath=path;
-                model.filePaths.add(path);
+                print(pref);
+                    if(pref=="DNI_"){
+                  model.documentPath=path;
+                }else{
+                  model.beneficiarioPath=path;
+                }
+
               },
               )
           ),
@@ -301,8 +327,8 @@ void atachPicture(BuildContext context,String title,String pref,WizardFormBloc m
 Widget buildImagePreview(String path){
  // return Image(image:AssetImage("assets/logo.png"),);
 
- //return path==null? Icon(Icons.image,size: 128,color: Colors.grey,):Image.file(File(path));
- return Icon(Icons.image,size: 128,color: Colors.grey,);
+ return path==null? Icon(Icons.image,size: 128,color: Colors.grey,):Image.file(File(path),height: 200,fit: BoxFit.contain,);
+
 }
   FormBlocStep _atachmentStep(WizardFormBloc wizardFormBloc,BuildContext context) {
    
@@ -315,7 +341,15 @@ Widget buildImagePreview(String path){
         child:  InkWell(
           splashColor: Colors.blue.withAlpha(30),
           onTap: (){
+            Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DisplayPicture(
+   
+              title: "Documento",
+              imagePath: wizardFormBloc.documentPath,
 
+              )));
           },
           child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -331,7 +365,8 @@ Widget buildImagePreview(String path){
               FlatButton(
                 child: const Text('ADJUNTAR'),
                 onPressed: () {
-                  atachPicture(context, "Documento", "_DNI",wizardFormBloc);
+                  wizardFormBloc.documentPath=null;
+                  atachPicture(context, "Documento", "DNI_",wizardFormBloc);
                  },
               ),
             ],
@@ -345,7 +380,15 @@ Widget buildImagePreview(String path){
         child:  InkWell(
           splashColor: Colors.blue.withAlpha(30),
           onTap: (){
-             print("cloick");
+             Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DisplayPicture(
+   
+              title: "Beneficiario",
+              imagePath: wizardFormBloc.beneficiarioPath
+
+              )));
           },
           child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -361,7 +404,8 @@ Widget buildImagePreview(String path){
               FlatButton(
                 child: const Text('ADJUNTAR'),
                 onPressed: () {
-                  atachPicture(context, "Beneficiario", "_BENEFICIARIO",wizardFormBloc);
+                  wizardFormBloc.beneficiarioPath=null;
+                  atachPicture(context, "Beneficiario", "BENEFICIARIO_",wizardFormBloc);
                  },
               ),
             ],
@@ -369,35 +413,7 @@ Widget buildImagePreview(String path){
         ],
       )
         )
-      ),
-
-
-      SizedBox(
-                     width: MediaQuery.of(context).size.width,
-                     //height: 48,
-                     child:RaisedButton(
-                      onPressed: (){
-                         Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => DisplayPicture(
-   
-              title: "Documentos",
-              imagePath: wizardFormBloc.filePaths[0],
-
-              )
-          ),
-        );
-                      },
-                       shape: new RoundedRectangleBorder(
-                      borderRadius: new BorderRadius.circular(25.0),
-                 ),
-               //  color: Colors.lightGreen,
-                 textColor: Colors.white,
-                      child: Text('VER FOTOS'),
-                    ),
-                     )
-          
+      ),     
         ],
       ),
     );

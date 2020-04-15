@@ -10,7 +10,13 @@ class DisplayPicture extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(title)),
-      body: Image.file(File(imagePath)),
+      body: Card(
+        child: InkWell( 
+          splashColor: Colors.blue.withAlpha(30),
+          onTap: (){},
+          child: Image.file(File(imagePath)),
+        ),
+      ),
     );
   }
 }

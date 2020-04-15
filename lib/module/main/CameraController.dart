@@ -81,7 +81,7 @@ class TakePictureScreenState extends State<TakePictureScreen> {
 
             // Construct the path where the image should be saved using the
             // pattern package.
-            String name=widget.pref+'file.jpg';
+            String name=widget.pref+DateTime.now().toString()+'.jpg';
             final path = join(
               // Store the picture in the temp directory.
               // Find the temp directory using the `path_provider` plugin.
@@ -89,7 +89,7 @@ class TakePictureScreenState extends State<TakePictureScreen> {
               name
               //'${DateTime.now()}file.jpg',
             );
-print(path);
+
  final file = File(path);
 if( file.existsSync()){
     await file.delete();
@@ -97,7 +97,7 @@ if( file.existsSync()){
             // Attempt to take a picture and log where it's been saved.
             await _controller.takePicture(path);
            if(widget.callback!=null){
-              widget.callback(path);
+              widget.callback(path,widget.pref);
            }
             // If the picture was taken, display it on a new screen.
             Navigator.push(

@@ -101,12 +101,14 @@ class LoginForm extends StatelessWidget {
               onSuccess: (context, state) {
                 LoadingDialog.hide(context);
               // Navigator.pushReplacementNamed(context, '/app');
+              Navigator.of(context).pop();
               Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => MainApp(user:loggedUser,title: APP_TITLE,),
           ),
         );
+        
               },
               onFailure: (context, state) {
                 LoadingDialog.hide(context);
