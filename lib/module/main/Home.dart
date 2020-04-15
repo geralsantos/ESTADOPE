@@ -9,10 +9,12 @@ import 'package:camera/camera.dart';
 import 'package:estado/module/main/DisplayPicture.dart';
 import 'dart:io';
 import 'package:estado/service/LocationService.dart';
+import 'package:estado/service/Composition.dart';
 class WizardFormBloc extends FormBloc<String, String> {
   int ubigeoId,userId;
   String documentPath,beneficiarioPath,geoLocation;
   Helper helper=new Helper();
+  List<Composition> compositions=new List();
    @override
    void onLoading() async {
     super.onLoading();
@@ -111,7 +113,8 @@ class WizardFormBloc extends FormBloc<String, String> {
         beneficiarioPath,
         ubigeoId,
         userId,
-        geoLocation
+        geoLocation,
+        compositions
         );
       emitSuccess();
     }
@@ -273,7 +276,10 @@ class _WizardFormState extends State<WizardForm> {
               prefixIcon: Icon(Icons.location_city),
             ),
           ),
-          CFDialog(),
+          CFDialog((chips){
+           print(chips);
+           wizardFormBloc.compositions=chips;
+          }),
           TextFieldBlocBuilder(
             textFieldBloc: wizardFormBloc.description,
             keyboardType: TextInputType.multiline,
@@ -329,7 +335,7 @@ void atachPicture(BuildContext context,String title,String pref,WizardFormBloc m
 Widget buildImagePreview(String path){
  // return Image(image:AssetImage("assets/logo.png"),);
 
- return path==null? Icon(Icons.image,size: 128,color: Colors.grey,):Image.file(File(path),height: 200,fit: BoxFit.contain,);
+ return path==null? Icon(Icons.image,size: 200,color: Colors.grey,):Image.file(File(path),height: 200,fit: BoxFit.contain,);
 
 }
   FormBlocStep _atachmentStep(WizardFormBloc wizardFormBloc,BuildContext context) {

@@ -1,24 +1,22 @@
 class Composition {
-  /*final String nombre;
+  final String nombre;
   final String cantidad;
-  final int id;*/
-  final String name;
-  final String email;
-  final String imageUrl;
+  final int id;
+
  // const Composition(this.nombre, this.cantidad, this.id);
-const Composition(this.name, this.email, this.imageUrl);
+const Composition(this.nombre, this.cantidad, this.id);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is Composition &&
           runtimeType == other.runtimeType &&
-          name == other.name;
+          nombre == other.nombre;
 
   @override
-  int get hashCode => name.hashCode;
+  int get hashCode => nombre.hashCode;
 
   @override
   String toString() {
-    return name;
+    return nombre;
   }
 }

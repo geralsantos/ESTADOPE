@@ -35,12 +35,12 @@ class Helper{
     }
     return null;
   }
-  Future<bool> save(args,String docPath,String bePath,int ubigeo,int user,String geoLocation) async{
+  Future<bool> save(args,String docPath,String bePath,int ubigeo,int user,String geoLocation,compositions) async{
     print(args);
     var postUri = Uri.parse(ROOT+'/registros/guardarBeneficiario/');
     var request = new http.MultipartRequest("POST", postUri);
-    request.fields['tipo_captura_id'] = args['tipo_captura_id'];
-    request.fields['tipo_documento_id'] = args['tipo_documento_id'];
+    request.fields['tipo_captura_id'] = args['tipo_captura_id'].toString();
+    request.fields['tipo_documento_id'] = args['tipo_documento_id'].toString();
     request.fields['numero_documento'] = args['numero_documento'];
     request.fields['primer_apellido'] = args['primer_apellido'];
     request.fields['segundo_apellido'] = args['segundo_apellido'];
@@ -48,11 +48,19 @@ class Helper{
     request.fields['direccion'] = args['direccion'];
     request.fields['centro_poblado'] = args['centro_poblado'];
     request.fields['observaciones'] = args['observaciones'];
-    request.fields['estado_entrega_id'] = args['estado_entrega_id'];
+    request.fields['estado_entrega_id'] = args['estado_entrega_id'].toString();
     request.fields['georeferencia'] = geoLocation;
     request.fields['usuario_id'] = user.toString();
     request.fields['ubigeo_id'] = ubigeo.toString();
-    print(geoLocation);
+  
+ var aux=[];
+ for(var c in compositions){
+   var prop={"nombre":c.nombre,"cantidad":c.cantidad,"id":c.id};
+   aux.add(prop);
+ }
+ var compositionList=json.encode(aux);
+ print(compositionList);
+ request.fields['composicion']=compositionList;
      var dformatter = new DateFormat('yyyy-MM-dd');
      var tformatter = new DateFormat('Hms');
    if(docPath!=null){
@@ -68,12 +76,18 @@ class Helper{
       contentType: new MediaType('image', 'jpg')));
    }
 
-   /*
-    request.send().then((response) {
+    var res=await request.send().then((response){
+    
+      print(response.statusCode);
       if (response.statusCode == 200){
         print("Uploaded!");
+       
       }
-    });*/
+    });
+      /*  res.stream.transform(utf8.decoder).listen((value) {
+        print(value);
+        return Future.value(value);
+      });*/
     return false;
   }
 }

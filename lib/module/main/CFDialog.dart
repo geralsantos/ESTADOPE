@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_chips_input/flutter_chips_input.dart';
 
 class CFDialog extends StatefulWidget {
+  final Function callback;
+  CFDialog(this.callback);
   @override
   CFDialogState createState() {
     return CFDialogState();
@@ -10,26 +12,12 @@ class CFDialog extends StatefulWidget {
 }
 
 class CFDialogState extends State<CFDialog> {
-  final mockResults = <Composition>[
-    Composition('John Doe', 'jdoe@flutter.io',
-        'https://d2gg9evh47fn9z.cloudfront.net/800px_COLOURBOX4057996.jpg'), 
-  ];
 
-  void show()  {
-     showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return Dialog(child: CFDialogContent());
-        });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onDoubleTap:show,
-      child: ChipsInput(
-        initialValue: [],
+var chipValues=<Composition>[];
+var chipsArgs;
+Widget buildChips(){
+  return ChipsInput(
+        initialValue: chipValues,
         keyboardAppearance: Brightness.dark,
         textCapitalization: TextCapitalization.words,
         enabled: true,
@@ -39,51 +27,61 @@ class CFDialogState extends State<CFDialog> {
           prefixIcon: Icon(Icons.chevron_right),
           labelText: "Composición familiar",
         ),
-        findSuggestions: (String query) {
-          if (query.length != 0) {
-            var lowercaseQuery = query.toLowerCase();
-            return mockResults.where((profile) {
-              return profile.name.toLowerCase().contains(query.toLowerCase()) ||
-                  profile.email.toLowerCase().contains(query.toLowerCase());
-            }).toList(growable: false)
-              ..sort((a, b) => a.name
-                  .toLowerCase()
-                  .indexOf(lowercaseQuery)
-                  .compareTo(b.name.toLowerCase().indexOf(lowercaseQuery)));
-          }
-          return <Composition>[];
-        },
         onChanged: (data) {
           print(data);
+        },
+        findSuggestions: (String query){
+        return <Composition>[];
         },
         chipBuilder: (context, state, profile) {
           return InputChip(
             key: ObjectKey(profile),
-            label: Text(profile.name),
-            avatar: CircleAvatar(
-              backgroundImage: NetworkImage(profile.imageUrl),
-            ),
+            label: Text(profile.nombre+":"+profile.cantidad),
             onDeleted: () => state.deleteChip(profile),
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           );
         },
         suggestionBuilder: (context, state, profile) {
-          return ListTile(
-            key: ObjectKey(profile),
-            leading: CircleAvatar(
-              backgroundImage: NetworkImage(profile.imageUrl),
-            ),
-            title: Text(profile.name),
-            subtitle: Text(profile.email),
-            onTap: () => state.selectSuggestion(profile),
-          );
+          return Container();
         },
-      ),
+      );
+
+}
+  void show()  {
+     showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return Dialog(child: CFDialogContent((args){
+            print(args);
+            var chips=<Composition>[];
+            chips.add(new Composition("0-11",args['cf011'],1));
+            chips.add(new Composition("12-17",args['cf1217'],2));
+            chips.add(new Composition("18-29",args['cf1829'],3));
+            chips.add(new Composition("30-59",args['cf3059'],4));
+            chips.add(new Composition("60+",args['cf60'],5));
+            setState(() {
+              chipsArgs=args;
+              chipValues=chips;
+            });
+            widget.callback(chips);
+          },chipsArgs));
+        });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onDoubleTap:show,
+      child: buildChips()
     );
   }
 }
 
 class CFDialogContent extends StatefulWidget {
+  final Function callback;
+  final  args;
+  CFDialogContent(this.callback,this.args);
   @override
   CFDialogContentState createState() {
     return CFDialogContentState();
@@ -93,9 +91,17 @@ class CFDialogContent extends StatefulWidget {
 class CFDialogContentState extends State<CFDialogContent> {
   String cf011 = "0", cf1217 = "0", cf1829 = "0", cf3059 = "0", cf60 = "0";
   var options = [];
+
   @override
   void initState() {
     super.initState();
+    if(widget.args!=null){
+      cf011=widget.args['cf011'];
+      cf1217=widget.args['cf1217'];
+      cf1829=widget.args['cf1829'];
+      cf3059=widget.args['cf3059'];
+      cf60=widget.args['cf60'];
+    }
     List<String> opts = [];
     for (var i = 0; i <= 70; i++) {
       opts.add(i.toString());
@@ -294,7 +300,17 @@ class CFDialogContentState extends State<CFDialogContent> {
                   ),
                   FlatButton(
                     onPressed: () {
-                      Navigator.pop(context);
+                      if(widget.callback!=null){
+                        widget.callback({
+                          "cf011":cf011,
+                          "cf1217":cf1217,
+                          "cf1829":cf1829,
+                          "cf3059":cf3059,
+                          "cf60":cf60
+                        });
+                      }
+                      Navigator.of(context).pop();
+
                     },
                     color:Colors.red,
                     textColor: Colors.white,
