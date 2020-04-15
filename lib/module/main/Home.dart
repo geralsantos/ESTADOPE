@@ -1,4 +1,5 @@
 
+import 'package:estado/module/main/CFDialog.dart';
 import 'package:estado/service/Helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_form_bloc/flutter_form_bloc.dart';
@@ -8,8 +9,6 @@ import 'package:camera/camera.dart';
 import 'package:estado/module/main/DisplayPicture.dart';
 import 'dart:io';
 import 'package:estado/service/LocationService.dart';
-import 'package:estado/service/Composition.dart';
-import 'package:flutter_chips_input/flutter_chips_input.dart';
 class WizardFormBloc extends FormBloc<String, String> {
   int ubigeoId,userId;
   String documentPath,beneficiarioPath,geoLocation;
@@ -21,6 +20,7 @@ class WizardFormBloc extends FormBloc<String, String> {
     var docs=await helper.getDocuments();
     var types=await helper.getCaptureTypes(ubigeoId.toString());
     var states=await helper.getStates();
+   
     if(docs!=null && types!=null && states!=null){
      select1.updateItems(docs);
      select1.updateInitialValue(docs[0]);
@@ -28,7 +28,8 @@ class WizardFormBloc extends FormBloc<String, String> {
      captureField.updateInitialValue(types[0]);
      stateField.updateItems(states);
      stateField.updateInitialValue(states[0]);
-
+        
+    
     emitLoaded();
     }else{
       emitLoadFailed();
@@ -78,10 +79,10 @@ class WizardFormBloc extends FormBloc<String, String> {
   final direcction = TextFieldBloc(name:'direccion',validators: [FieldBlocValidators.required]);
   final populatedCenter = TextFieldBloc(name:'centro_poblado');
   final ghost=TextFieldBloc(name: 'ghost');
-
   WizardFormBloc( int uId,int id):super(isLoading:true) {
     this.ubigeoId=uId;
     this.userId=id;
+    
     addFieldBlocs(
       step: 0,
       fieldBlocs: [captureField,select1,documentNumber, firstName, lastName,name],
@@ -252,32 +253,7 @@ class _WizardFormState extends State<WizardForm> {
   }
 
   FormBlocStep _aditionalStep(WizardFormBloc wizardFormBloc) {
-    const mockResults = <Composition>[
-      Composition('John Doe', 'jdoe@flutter.io',
-          'https://d2gg9evh47fn9z.cloudfront.net/800px_COLOURBOX4057996.jpg'),
-      Composition('Paul', 'paul@google.com',
-          'https://mbtskoudsalg.com/images/person-stock-image-png.png'),
-      Composition('Fred', 'fred@google.com',
-          'https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png'),
-      Composition('Brian', 'brian@flutter.io',
-          'https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png'),
-      Composition('John', 'john@flutter.io',
-          'https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png'),
-      Composition('Thomas', 'thomas@flutter.io',
-          'https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png'),
-      Composition('Nelly', 'nelly@flutter.io',
-          'https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png'),
-      Composition('Marie', 'marie@flutter.io',
-          'https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png'),
-      Composition('Charlie', 'charlie@flutter.io',
-          'https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png'),
-      Composition('Diana', 'diana@flutter.io',
-          'https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png'),
-      Composition('Ernie', 'ernie@flutter.io',
-          'https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png'),
-      Composition('Gina', 'fred@flutter.io',
-          'https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png'),
-    ];
+
     return FormBlocStep(
       title: Text('Observaciones'),
       content: Column(
@@ -297,66 +273,7 @@ class _WizardFormState extends State<WizardForm> {
               prefixIcon: Icon(Icons.location_city),
             ),
           ),
-      ChipsInput(
-              initialValue: [
-                Composition('John Doe', 'jdoe@flutter.io',
-                    'https://d2gg9evh47fn9z.cloudfront.net/800px_COLOURBOX4057996.jpg'),
-              ],
-              keyboardAppearance: Brightness.dark,
-              textCapitalization: TextCapitalization.words,
-              enabled: true,
-              maxChips: 5,
-              textStyle:
-                  TextStyle(height: 1.5, fontFamily: "Roboto", fontSize: 16),
-              decoration: InputDecoration(
-                 prefixIcon: Icon(Icons.search),
-                labelText: "Select People",
-              ),
-              findSuggestions: (String query) {
-                if (query.length != 0) {
-                  var lowercaseQuery = query.toLowerCase();
-                  return mockResults.where((profile) {
-                    return profile.name
-                            .toLowerCase()
-                            .contains(query.toLowerCase()) ||
-                        profile.email
-                            .toLowerCase()
-                            .contains(query.toLowerCase());
-                  }).toList(growable: false)
-                    ..sort((a, b) => a.name
-                        .toLowerCase()
-                        .indexOf(lowercaseQuery)
-                        .compareTo(
-                            b.name.toLowerCase().indexOf(lowercaseQuery)));
-                }
-                return <Composition>[];
-              },
-              onChanged: (data) {
-                print(data);
-              },
-              chipBuilder: (context, state, profile) {
-                return InputChip(
-                  key: ObjectKey(profile),
-                  label: Text(profile.name),
-                  avatar: CircleAvatar(
-                    backgroundImage: NetworkImage(profile.imageUrl),
-                  ),
-                  onDeleted: () => state.deleteChip(profile),
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                );
-              },
-              suggestionBuilder: (context, state, profile) {
-                return ListTile(
-                  key: ObjectKey(profile),
-                  leading: CircleAvatar(
-                    backgroundImage: NetworkImage(profile.imageUrl),
-                  ),
-                  title: Text(profile.name),
-                  subtitle: Text(profile.email),
-                  onTap: () => state.selectSuggestion(profile),
-                );
-              },
-            ),
+          CFDialog(),
           TextFieldBlocBuilder(
             textFieldBloc: wizardFormBloc.description,
             keyboardType: TextInputType.multiline,
