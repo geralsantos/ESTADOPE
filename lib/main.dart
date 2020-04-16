@@ -66,10 +66,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
   void read() async{
    User u= new User();
-   print("emer morales");
      await u.read();
-     print("my id");
-     print(u.getId());
      setState(() {
        currentUser=u;
      });
@@ -80,6 +77,14 @@ class _MyHomePageState extends State<MyHomePage> {
      }
     
   }
+  Future<Widget> loadImage() async{
+    return    Image(
+                image:AssetImage("assets/logo.png"),
+                fit: BoxFit.contain,
+                height: 150,
+                
+           );
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -87,11 +92,11 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: <Widget>[
-             Image(
-                image:AssetImage("assets/logo.png"),
-                fit: BoxFit.contain,
-                height: 150,
-                
+            FutureBuilder(
+              builder:(BuildContext c,s){
+                return Text('Loading...');
+              },
+              future:loadImage(),
               ),
             Text(
               APP_TITLE,

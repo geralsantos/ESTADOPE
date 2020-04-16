@@ -94,28 +94,53 @@ class WizardFormBloc extends FormBloc<String, String> {
       step: 2,
       fieldBlocs: [ghost],
     );
+    description..addValidators([addRequiredDescription(captureField)])
+    ..subscribeToFieldBlocs([captureField]);
+ 
   }
+ Validator addRequiredDescription(SelectFieldBloc cap){
+   return (var val){
+     if(cap.value!=null && cap.value.codigo==2){
+       description.addValidators([FieldBlocValidators.required]);
+       return "Este campo es obligatorio";
+     }
+    return null;
+   };
+ }
 void reset(){
   captureField.clear();
   select1.clear();
-  documentNumber.clear();
-  firstName.clear();
-  lastName.clear();
-  name.clear();
-  direcction.clear();
-  populatedCenter.clear();
-  description.clear();
+  documentNumber.updateValue("");
+  firstName.updateValue("");
+  lastName.updateValue("");
+  name.updateValue("");
+  direcction.updateValue("");
+  populatedCenter.updateValue("");
+  description.updateValue("");
   stateField.clear();
+  
+  compositions=[];
+  documentPath=null;
+  beneficiarioPath=null;
 }
   @override
   void onSubmitting() async {
      print("submit");
     if (state.currentStep == 0) {
         emitSuccess();
+        
     } else if (state.currentStep == 1) {
-      emitSuccess();
+      print(compositions);
+      if(compositions==null || compositions.length==0){
+        emitFailure(failureResponse: "Seleccione la compisicón familiar");
+      }else{
+        emitSuccess();
+      }
     } else if (state.currentStep == 2) {
-      emitSubmitting();
+      if(documentPath==null){
+         emitFailure(failureResponse: "Adjunte la foto del Documento");
+        }else{
+          emitSubmitting();
     bool status= await helper.save(
         state.toJson(),
         documentPath,
@@ -132,7 +157,9 @@ void reset(){
         );
      }else{
        emitFailure(failureResponse: "Ocurrió un error inesperado, intentelo nuevamente!");
-     }
+     }  
+        }
+      
     }
   }
 }
@@ -173,6 +200,7 @@ class _WizardFormState extends State<WizardForm> {
                     if (state.stepCompleted == state.lastStep) {
                                      Scaffold.of(context).showSnackBar(
                     SnackBar(content: Text(state.successResponse)));
+                    
                     }
                   },
                   onFailure: (context, state) {
@@ -211,7 +239,7 @@ class _WizardFormState extends State<WizardForm> {
   }
 
   FormBlocStep _generalStep(WizardFormBloc wizardFormBloc) {
-
+     
     return FormBlocStep(
       title: Text('General'),
       
@@ -241,6 +269,8 @@ class _WizardFormState extends State<WizardForm> {
                         ),
           TextFieldBlocBuilder(
             textFieldBloc: wizardFormBloc.documentNumber,
+            keyboardType: TextInputType.number,
+            maxLength: 8,
             decoration: InputDecoration(
               labelText: 'Número de documento',
               prefixIcon: Icon(Icons.credit_card)

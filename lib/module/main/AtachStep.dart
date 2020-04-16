@@ -60,7 +60,8 @@ Widget buildImagePreview(String path){
         child:  InkWell(
           splashColor: Colors.blue.withAlpha(30),
           onTap: (){
-            Navigator.push(
+          if(documentPath!=null){
+              Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => DisplayPicture(
@@ -69,6 +70,7 @@ Widget buildImagePreview(String path){
               imagePath: documentPath,
 
               )));
+          }
           },
           child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -111,7 +113,8 @@ Widget buildImagePreview(String path){
         child:  InkWell(
           splashColor: Colors.blue.withAlpha(30),
           onTap: (){
-             Navigator.push(
+             if(beneficiarioPath!=null){
+               Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => DisplayPicture(
@@ -120,6 +123,7 @@ Widget buildImagePreview(String path){
               imagePath: beneficiarioPath
 
               )));
+             }
           },
           child: Column(
         mainAxisSize: MainAxisSize.min,
