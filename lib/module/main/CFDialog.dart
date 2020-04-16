@@ -1,6 +1,7 @@
 import 'package:estado/service/Composition.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_chips_input/flutter_chips_input.dart';
+
+
 
 class CFDialog extends StatefulWidget {
   final Function callback;
@@ -15,45 +16,58 @@ class CFDialogState extends State<CFDialog> {
 
 var chipValues=<Composition>[];
 var chipsArgs;
-Widget buildChips(){
-  return ChipsInput(
-        initialValue: chipValues,
-        keyboardAppearance: Brightness.dark,
-        textCapitalization: TextCapitalization.words,
-        enabled: true,
-        maxChips: 5,
-        textStyle: TextStyle(height: 1.5, fontFamily: "Roboto", fontSize: 16),
-        decoration: InputDecoration(
-          prefixIcon: Icon(Icons.chevron_right),
-          labelText: "Composición familiar",
-        ),
-        onChanged: (data) {
-          print(data);
-        },
-        findSuggestions: (String query){
-        return <Composition>[];
-        },
-        chipBuilder: (context, state, profile) {
-          return InputChip(
-            key: ObjectKey(profile),
-            label: Text(profile.nombre+":"+profile.cantidad),
-            onDeleted: () => state.deleteChip(profile),
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          );
-        },
-        suggestionBuilder: (context, state, profile) {
-          return Container();
-        },
+List<Widget> buildItems(){
+  var items= <Widget>[];
+  if(chipValues.length>0){
+    for(var c in chipValues){
+    items.add(
+      InputChip(
+        elevation: 2,
+      label: Text(c.nombre.toString()+":"+c.cantidad.toString(),
+   style: TextStyle(color: Colors.black),
+      ),
+      )
       );
-
+  }
+  }else{
+    items.add(Text("Composición familiar"));
+  }
+  return items; 
 }
-  void show()  {
-     showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return Dialog(child: CFDialogContent((args){
-            print(args);
+Widget buildChips(){
+ return Container(
+    margin: const EdgeInsets.all(2.0),
+    width: MediaQuery.of(context).size.width-100,
+    padding:  EdgeInsets.fromLTRB(chipValues.length==0?15:5, 5, 5, 5),
+    
+    decoration:BoxDecoration(
+       borderRadius: BorderRadius.all(
+        Radius.circular(5.0) //         <--- border radius here
+    ),
+    border: Border.all(
+      color: Colors.grey
+    ),
+  
+  ), //       <--- BoxDecoration here
+
+      child:SingleChildScrollView(
+         scrollDirection: Axis.horizontal,
+        child:ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight:48,
+            minWidth: MediaQuery.of(context).size.width+50
+          ),
+          child:Row(
+      mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: chipValues.length==0?MainAxisAlignment.start:MainAxisAlignment.spaceEvenly,
+      children: buildItems(),
+    )
+      )
+      )
+  );
+ 
+}
+void updateChips(args){
             var chips=<Composition>[];
             chips.add(new Composition("0-11",args['cf011'],1));
             chips.add(new Composition("12-17",args['cf1217'],2));
@@ -65,14 +79,21 @@ Widget buildChips(){
               chipValues=chips;
             });
             widget.callback(chips);
-          },chipsArgs));
+           
+}
+  void show()  {
+     showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return Dialog(child: CFDialogContent(updateChips,chipsArgs));
         });
   }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onDoubleTap:show,
+      onTap:show,
       child: buildChips()
     );
   }

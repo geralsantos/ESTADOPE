@@ -33,7 +33,6 @@ dependencies:
   flutter_form_bloc: ^0.12.2
   flutter_bloc: ^3.2.0
   location: ^3.0.2
-  flutter_chips_input: ^1.8.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -1,13 +1,10 @@
 
+import 'package:estado/module/main/AtachStep.dart';
 import 'package:estado/module/main/CFDialog.dart';
 import 'package:estado/service/Helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_form_bloc/flutter_form_bloc.dart';
 import 'package:estado/service/User.dart';
-import 'package:estado/module/main/CameraController.dart';
-import 'package:camera/camera.dart';
-import 'package:estado/module/main/DisplayPicture.dart';
-import 'dart:io';
 import 'package:estado/service/LocationService.dart';
 import 'package:estado/service/Composition.dart';
 class WizardFormBloc extends FormBloc<String, String> {
@@ -98,7 +95,18 @@ class WizardFormBloc extends FormBloc<String, String> {
       fieldBlocs: [ghost],
     );
   }
-
+void reset(){
+  captureField.clear();
+  select1.clear();
+  documentNumber.clear();
+  firstName.clear();
+  lastName.clear();
+  name.clear();
+  direcction.clear();
+  populatedCenter.clear();
+  description.clear();
+  stateField.clear();
+}
   @override
   void onSubmitting() async {
      print("submit");
@@ -107,7 +115,8 @@ class WizardFormBloc extends FormBloc<String, String> {
     } else if (state.currentStep == 1) {
       emitSuccess();
     } else if (state.currentStep == 2) {
-      helper.save(
+      emitSubmitting();
+    bool status= await helper.save(
         state.toJson(),
         documentPath,
         beneficiarioPath,
@@ -116,7 +125,14 @@ class WizardFormBloc extends FormBloc<String, String> {
         geoLocation,
         compositions
         );
-      emitSuccess();
+     if(status){
+         reset();
+        emitSuccess(
+          successResponse: "Registro enviado con éxito"
+        );
+     }else{
+       emitFailure(failureResponse: "Ocurrió un error inesperado, intentelo nuevamente!");
+     }
     }
   }
 }
@@ -155,13 +171,14 @@ class _WizardFormState extends State<WizardForm> {
                     LoadingDialog.hide(context);
 
                     if (state.stepCompleted == state.lastStep) {
-                    /*  Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(builder: (_) => SuccessScreen()));
-                          */
+                                     Scaffold.of(context).showSnackBar(
+                    SnackBar(content: Text(state.successResponse)));
                     }
                   },
                   onFailure: (context, state) {
                     LoadingDialog.hide(context);
+                                    Scaffold.of(context).showSnackBar(
+                    SnackBar(content: Text(state.failureResponse)));
                   },
                   child: StepperFormBlocBuilder<WizardFormBloc>(
                     type: StepperType.vertical,
@@ -169,6 +186,7 @@ class _WizardFormState extends State<WizardForm> {
                     onStepTapped: (FormBloc f,int i){
                         print("tapping");
                         print(i);
+                      
                     },
                     physics: ClampingScrollPhysics(),
                     stepsBuilder: (formBloc) {
@@ -307,137 +325,15 @@ class _WizardFormState extends State<WizardForm> {
   }
 }
 
-void atachPicture(BuildContext context,String title,String pref,WizardFormBloc model) async{
- final cameras = await availableCameras();
-    final firstCamera = cameras.first;
-    Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => TakePictureScreen(
-              camera: firstCamera,
-              title: title,
-              pref: pref,
-              callback: (String path,String pref){
-                print("my path");
-                print(path);
-                print(pref);
-                    if(pref=="DNI_"){
-                  model.documentPath=path;
-                }else{
-                  model.beneficiarioPath=path;
-                }
 
-              },
-              )
-          ),
-        );
-}
-Widget buildImagePreview(String path){
- // return Image(image:AssetImage("assets/logo.png"),);
-
- return path==null? Icon(Icons.image,size: 200,color: Colors.grey,):Image.file(File(path),height: 200,fit: BoxFit.contain,);
-
-}
   FormBlocStep _atachmentStep(WizardFormBloc wizardFormBloc,BuildContext context) {
-   
-
     return FormBlocStep(
       title: Text('Adjuntos'),
-      content: Column(
-        children: <Widget>[
-          Card(
-        child:  InkWell(
-          splashColor: Colors.blue.withAlpha(30),
-          onTap: (){
-            Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => DisplayPicture(
-   
-              title: "Documento",
-              imagePath: wizardFormBloc.documentPath,
-
-              )));
-          },
-          child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          const ListTile(
-            leading: Icon(Icons.credit_card),
-            title: Text('Documento'),
-            
-          ),
-          buildImagePreview(wizardFormBloc.documentPath),
-          ButtonBar(
-            children: <Widget>[
-               FlatButton(
-                child: const Text('ELIMINAR'),
-                textColor: Colors.grey,
-                onPressed: () {
-                  wizardFormBloc.documentPath=null;
-                 },
-              ),
-              FlatButton(
-                child: const Text('ADJUNTAR'),
-                onPressed: () {
-                  wizardFormBloc.documentPath=null;
-                  atachPicture(context, "Documento", "DNI_",wizardFormBloc);
-                 },
-              ),
-            ],
-          ),
-        ],
-      )
-        )
-      ),
-       Card(
-          
-        child:  InkWell(
-          splashColor: Colors.blue.withAlpha(30),
-          onTap: (){
-             Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => DisplayPicture(
-   
-              title: "Beneficiario",
-              imagePath: wizardFormBloc.beneficiarioPath
-
-              )));
-          },
-          child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          const ListTile(
-            leading: Icon(Icons.credit_card),
-            title: Text('Beneficiario'),
-            
-          ),
-          buildImagePreview(wizardFormBloc.beneficiarioPath),
-          ButtonBar(
-            children: <Widget>[
-              FlatButton(
-                child: const Text('ELIMINAR'),
-                textColor: Colors.grey,
-                onPressed: () {
-                  wizardFormBloc.beneficiarioPath=null;
-                 },
-              ),
-              FlatButton(
-                child: const Text('ADJUNTAR'),
-                onPressed: () {
-                  wizardFormBloc.beneficiarioPath=null;
-                  atachPicture(context, "Beneficiario", "BENEFICIARIO_",wizardFormBloc);
-                 },
-              ),
-            ],
-          ),
-        ],
-      )
-        )
-      ),     
-        ],
-      ),
+      content: AtachStep((String docPath){
+        wizardFormBloc.documentPath=docPath;
+      },(String bePath){
+        wizardFormBloc.beneficiarioPath=bePath;
+      })
     );
   }
 class LoadingDialog extends StatelessWidget {
