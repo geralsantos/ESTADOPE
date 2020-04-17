@@ -2,9 +2,6 @@ import 'package:estado/config.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
-import 'package:http_parser/http_parser.dart';
-import 'package:intl/intl.dart';
 class Helper{
   Future getDocuments() async{
     try{
@@ -52,12 +49,14 @@ class Helper{
     request.fields['georeferencia'] = geoLocation;
     request.fields['usuario_id'] = user.toString();
     request.fields['ubigeo_id'] = ubigeo.toString();
+   if(compositions!=null && compositions.length>0){
 var i=0;
  for(var c in compositions){
   var arg={"id":c.id,"nombre":c.nombre,"cantidad":c.cantidad};
 request.fields['composicion['+i.toString()+']']=json.encode(arg);
 i++;
  }
+   }
    if(docPath!=null){
 
     request.files.add(

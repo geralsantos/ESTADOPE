@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:estado/config.dart';
+import 'package:estado/module/entity/Tables.dart';
 import 'package:estado/module/main/AtachStep.dart';
 import 'package:estado/module/main/CFDialog.dart';
+import 'package:estado/module/sotorage/Storage.dart';
 import 'package:estado/service/Helper.dart';
 import 'package:estado/utils/CustomValidator.dart';
 import 'package:flutter/material.dart';
@@ -8,7 +12,8 @@ import 'package:flutter_form_bloc/flutter_form_bloc.dart';
 import 'package:estado/service/User.dart';
 import 'package:estado/service/LocationService.dart';
 import 'package:estado/service/Composition.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:connectivity/connectivity.dart';
 import 'MainApp.dart';
 
 class WizardFormBloc extends FormBloc<String, String> {
@@ -16,14 +21,19 @@ class WizardFormBloc extends FormBloc<String, String> {
   String documentPath, beneficiarioPath, geoLocation;
   Helper helper = new Helper();
   List<Composition> compositions = new List();
+  bool savedInLocal = false;
+  bool connectionStatus=false;
   @override
   void onLoading() async {
     super.onLoading();
-
-   var docs = await helper.getDocuments();
-   var types = await helper.getCaptureTypes(ubigeoId.toString());
-   var states = await helper.getStates();
-
+    var connectivityResult = await (Connectivity().checkConnectivity());
+    print("connectivityResult");
+    print(connectivityResult);
+    if(connectivityResult != ConnectivityResult.none){
+      connectionStatus=true;
+     var docs = await helper.getDocuments();
+    var types = await helper.getCaptureTypes(ubigeoId.toString());
+    var states = await helper.getStates();
     if (docs != null && types != null && states != null) {
       select1.updateItems(docs);
       select1.updateInitialValue(docs[0]);
@@ -33,8 +43,60 @@ class WizardFormBloc extends FormBloc<String, String> {
       stateField.updateInitialValue(states[0]);
 
       emitLoaded();
+      if (!savedInLocal) {
+        try {
+          Storage storage = new Storage();
+          await storage.open();
+          for (var doc in docs) {
+            await storage.insert(
+                "tipodocumento", new TipoDocumento(doc['id'], doc['nombre']));
+          }
+          for (var row in types) {
+            await storage.insert("tipocaptura",
+                new TipoCaptura(row['id'], row['nombre'], row['codigo']));
+          }
+          for (var row in states) {
+            await storage.insert(
+                "estadoentrega", new EstadoEntrega(row['id'], row['nombre']));
+          }
+          final prefs = await SharedPreferences.getInstance();
+          prefs.setBool("saved_in_local", true);
+          print("saved in local");
+      
+        } catch (err) {
+          print(err);
+        }
+      }
+       
     } else {
       emitLoadFailed();
+    }
+    }else{
+      Storage storage = new Storage();
+       await storage.open();
+       var docs= await  storage.getAll("tipodocumento", (var maps,int index){
+              return maps;
+        });
+       var types= await  storage.getAll("tipocaptura", (var maps,int index){
+              return maps;
+        });
+       var states= await  storage.getAll("estadoentrega", (var maps,int index){
+              return maps;
+        });
+      if(docs!=null && states!=null && types!=null){
+        docs=json.decode(json.encode(docs));
+        states=json.decode(json.encode(states));
+        types=json.decode(json.encode(types));
+      select1.updateItems(docs);
+      select1.updateInitialValue(docs[0]);
+      captureField.updateItems(types);
+      captureField.updateInitialValue(types[0]);
+      stateField.updateItems(states);
+      stateField.updateInitialValue(states[0]);
+      emitLoaded();
+      }else{
+        emitLoadFailed();
+      }
     }
     geoLocation = await getLocation();
   }
@@ -74,13 +136,13 @@ class WizardFormBloc extends FormBloc<String, String> {
       validators: [CustomValidator.req("Ingrese un aepllido materno")]);
 
   final direcction = TextFieldBloc(
-      name: 'direccion',
-      validators: [CustomValidator.req("Ingrese una dirección")]);
+      name: 'direccion');
   final populatedCenter = TextFieldBloc(name: 'centro_poblado');
   final ghost = TextFieldBloc(name: 'ghost');
-  WizardFormBloc(int uId, int id) : super(isLoading: true) {
+  WizardFormBloc(int uId, int id, bool sil) : super(isLoading: true) {
     this.ubigeoId = uId;
     this.userId = id;
+    this.savedInLocal = sil;
 
     addFieldBlocs(
       step: 0,
@@ -101,35 +163,7 @@ class WizardFormBloc extends FormBloc<String, String> {
       step: 2,
       fieldBlocs: [ghost],
     );
-    description
-      ..addValidators([addRequiredDescription(captureField)])
-      ..subscribeToFieldBlocs([captureField]);
   }
-  Validator addRequiredDescription(SelectFieldBloc cap) {
-    return (var val) {
-      if (cap.value != null && cap.value.codigo == 2) {
-        description.addValidators([FieldBlocValidators.required]);
-        return "Ingrese una observación";
-      }
-      return null;
-    };
-  }
-
-  /*void reset() {
-    captureField.updateValue(types[0]);
-    select1.updateValue(docs[0]);
-    stateField.updateValue(states[0]);
-    documentNumber.clear();
-    firstName.clear();
-    lastName.clear();
-    name.clear();
-    direcction.clear();
-    populatedCenter.clear();
-    description.updateValue("");
-    compositions = [];
-    documentPath = null;
-    beneficiarioPath = null;
-  }*/
 
   @override
   void onSubmitting() async {
@@ -137,15 +171,15 @@ class WizardFormBloc extends FormBloc<String, String> {
     if (state.currentStep == 0) {
       emitSuccess();
     } else if (state.currentStep == 1) {
-      print(compositions);
-      if (compositions == null || compositions.length == 0) {
-        emitFailure(failureResponse: "Seleccione la compisicón por edad");
+      if (captureField.value['codigo'].toString() == '2' && description.value.toString().trim().length==0) {
+        description.addError("Ingrese una observación");
+        emitFailure(failureResponse: "Ingrese una observación");
       } else {
         emitSuccess();
       }
     } else if (state.currentStep == 2) {
       if (documentPath == null) {
-        emitFailure(failureResponse: "Adjunte la foto del Documento");
+        emitFailure(failureResponse: "Adjunte la foto del documento");
       } else {
         emitSubmitting();
         bool status = await helper.save(state.toJson(), documentPath,
@@ -173,8 +207,8 @@ class _WizardFormState extends State<WizardForm> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) =>
-          WizardFormBloc(widget.user.getubigeoId(), widget.user.getId()),
+      create: (context) => WizardFormBloc(widget.user.getubigeoId(),
+          widget.user.getId(), widget.user.savedInLocal),
       child: Builder(
         builder: (context) {
           return Theme(
@@ -196,11 +230,11 @@ class _WizardFormState extends State<WizardForm> {
                     if (state.stepCompleted == state.lastStep) {
                       Scaffold.of(context).showSnackBar(
                           SnackBar(content: Text(state.successResponse)));
-                                      Future.delayed(Duration(seconds: 2),(){
-                                          Navigator.of(context).pushReplacement(MaterialPageRoute(
-                  builder: (_) =>
-                      MainApp(title: APP_TITLE, user: widget.user)));
-                                      });
+                      Future.delayed(Duration(seconds: 2), () {
+                        Navigator.of(context).pushReplacement(MaterialPageRoute(
+                            builder: (_) =>
+                                MainApp(title: APP_TITLE, user: widget.user)));
+                      });
                     }
                   },
                   onFailure: (context, state) {
@@ -210,10 +244,7 @@ class _WizardFormState extends State<WizardForm> {
                   },
                   child: StepperFormBlocBuilder<WizardFormBloc>(
                     type: StepperType.vertical,
-                    onStepTapped: (FormBloc f, int i) {
-                      print("tapping");
-                      print(i);
-                    },
+                    onStepTapped: (FormBloc f, int i) {},
                     physics: ClampingScrollPhysics(),
                     stepsBuilder: (formBloc) {
                       return [

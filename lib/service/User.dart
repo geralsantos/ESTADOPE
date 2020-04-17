@@ -3,6 +3,7 @@ class User{
    String name,surnames,user;
    int id;
    int ubigeoId;
+   bool savedInLocal;
   Future read() async{
     final prefs = await SharedPreferences.getInstance();
     name=prefs.getString("nombres") ?? "None";
@@ -10,6 +11,7 @@ class User{
     user=prefs.getString("usuario")??"None";
     id=prefs.getInt("id") ?? -1;
     ubigeoId=prefs.getInt("ubigeo_id") ?? -1;
+     savedInLocal=prefs.getBool("saved_in_local")??false;
     //prefs.setString("cool", "my cool value");
   }
   void setUser(String u){
