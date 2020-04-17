@@ -196,9 +196,11 @@ class _WizardFormState extends State<WizardForm> {
                     if (state.stepCompleted == state.lastStep) {
                       Scaffold.of(context).showSnackBar(
                           SnackBar(content: Text(state.successResponse)));
-                                        Navigator.of(context).pushReplacement(MaterialPageRoute(
+                                      Future.delayed(Duration(seconds: 2),(){
+                                          Navigator.of(context).pushReplacement(MaterialPageRoute(
                   builder: (_) =>
                       MainApp(title: APP_TITLE, user: widget.user)));
+                                      });
                     }
                   },
                   onFailure: (context, state) {
