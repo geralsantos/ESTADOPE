@@ -38,7 +38,8 @@ beneficiario_path text
   }
   Future<void> insert(String table,var obj) async{
    final Database db= await database;
-   db.insert(table, obj.toMap(),conflictAlgorithm: ConflictAlgorithm.replace);
+   await db.insert(table, obj.toMap(),conflictAlgorithm: ConflictAlgorithm.replace);
+   
   }
   Future<List<dynamic>> getAll(String table,Function callback) async {
     final Database db = await database;

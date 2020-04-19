@@ -15,6 +15,7 @@ import 'package:estado/service/Composition.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity/connectivity.dart';
 import 'MainApp.dart';
+import 'package:estado/module/main/LoadingDialog.dart';
 
 class WizardFormBloc extends FormBloc<String, String> {
   int ubigeoId, userId;
@@ -389,35 +390,7 @@ FormBlocStep _atachmentStep(
       }));
 }
 
-class LoadingDialog extends StatelessWidget {
-  static void show(BuildContext context, {Key key}) => showDialog<void>(
-        context: context,
-        useRootNavigator: false,
-        barrierDismissible: false,
-        builder: (_) => LoadingDialog(key: key),
-      ).then((_) => FocusScope.of(context).requestFocus(FocusNode()));
 
-  static void hide(BuildContext context) => Navigator.pop(context);
-
-  LoadingDialog({Key key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async => false,
-      child: Center(
-        child: Card(
-          child: Container(
-            width: 80,
-            height: 80,
-            padding: EdgeInsets.all(12.0),
-            child: CircularProgressIndicator(),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 void responseDialog(
     IconData icon, Color color, String msj, BuildContext context) {

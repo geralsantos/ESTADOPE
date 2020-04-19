@@ -61,7 +61,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
   
     super.initState();
-       print("init");
+  
      read();
   }
   void read() async{
@@ -77,14 +77,7 @@ class _MyHomePageState extends State<MyHomePage> {
      }
     
   }
-  Future<Widget> loadImage() async{
-    return    Image(
-                image:AssetImage("assets/logo.png"),
-                fit: BoxFit.contain,
-                height: 150,
-                
-           );
-  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -97,13 +90,7 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: <Widget>[
-            FutureBuilder(
-              builder:(BuildContext c,s){
-                return Text('Cargando datos...',
-                style: TextStyle(color: Colors.white));
-              },
-              future:loadImage(),
-              ),
+           Text('Cargando datos...',style: TextStyle(color: Colors.white),),
             Text(
               APP_TITLE,
               style:TextStyle(color: Colors.white,fontSize: 20),

@@ -19,4 +19,11 @@ const Composition(this.nombre, this.cantidad, this.id);
   String toString() {
     return nombre;
   }
+  Map<String,dynamic> toMap(){
+    return {
+     'nombre':nombre,
+     'cantidad':cantidad,
+     'id':id
+    };
+  }
 }

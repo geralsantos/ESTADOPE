@@ -3,6 +3,8 @@ import 'package:estado/service/User.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:estado/module/main/Home.dart';
 
+import 'LocalDonations.dart';
+
 class MainApp extends StatefulWidget {
   MainApp({Key key, this.title, this.user}) : super(key: key);
   final String title;
@@ -69,6 +71,8 @@ class _MyHomePageState extends State<MainApp> {
     switch (_selectedDrawerIndex) {
       case 1:
         return new WizardForm(widget.user);
+        case 2:
+        return new LocalDonations();
       default:
         return new Text("error");
     }
@@ -120,6 +124,13 @@ class _MyHomePageState extends State<MainApp> {
                 title: Text('Donaciones'),
                 onTap: () {
                   setDrawer(1);
+                },
+              ),
+                            ListTile(
+                leading: Icon(Icons.cloud_upload),
+                title: Text('Sincronización'),
+                onTap: () {
+                  setDrawer(2);
                 },
               ),
               Divider(),
