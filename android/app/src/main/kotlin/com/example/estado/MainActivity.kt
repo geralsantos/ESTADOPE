@@ -1,4 +1,4 @@
-package com.estado
+package com.estadope
 
 import androidx.annotation.NonNull;
 import io.flutter.embedding.android.FlutterActivity

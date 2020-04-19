@@ -29,8 +29,6 @@ class WizardFormBloc extends FormBloc<String, String> {
   void onLoading() async {
     super.onLoading();
     var connectivityResult = await (Connectivity().checkConnectivity());
-    print("connectivityResult");
-    print(connectivityResult);
     if (connectivityResult != ConnectivityResult.none) {
       connectionStatus = true;
       var docs = await helper.getDocuments();

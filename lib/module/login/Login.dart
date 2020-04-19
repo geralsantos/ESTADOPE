@@ -19,8 +19,9 @@ class LoginFormBloc extends FormBloc<String, String> {
   final password = TextFieldBloc(
     validators: [CustomValidator.req("Ingrese su contraseña")],
   );
-
-  LoginFormBloc() {
+BuildContext context;
+  LoginFormBloc(BuildContext c) {
+    context=c;
     addFieldBlocs(
       fieldBlocs: [
         email,
@@ -29,14 +30,14 @@ class LoginFormBloc extends FormBloc<String, String> {
     );
   }
   Future<bool> _login() async {
-    final request = await http.post(ROOT + '/login/supervisor/', body: {
+
+    final request = await http.post(ROOT+'/login/supervisor', body: {
       "usuario": email.value.trim(),
       "contrasena": password.value.trim(),
     });
-//print(request.body);
+
     try {
       var response = json.decode(request.body);
-      // print(request.body);
       if (response.length == 0 || response['estado'] != 1) {
         return false;
       } else {
@@ -63,9 +64,6 @@ class LoginFormBloc extends FormBloc<String, String> {
 
   @override
   void onSubmitting() async {
-    print(email.value);
-    print(password.value);
-
     bool state = await _login();
     // print(state);
     if (state) {
@@ -80,7 +78,7 @@ class LoginForm extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => LoginFormBloc(),
+      create: (context) => LoginFormBloc(context),
       child: Builder(
         builder: (context) {
           final loginFormBloc = context.bloc<LoginFormBloc>();
