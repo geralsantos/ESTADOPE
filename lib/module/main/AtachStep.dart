@@ -72,7 +72,7 @@ class AtachStepState extends State<AtachStep> {
                         context,
                         MaterialPageRoute(
                             builder: (context) => DisplayPicture(
-                                  title: "Documento",
+                                  title: "DNI+PLANILLA",
                                   imagePath: documentPath,
                                 )));
                   }
@@ -82,7 +82,7 @@ class AtachStepState extends State<AtachStep> {
                   children: <Widget>[
                     const ListTile(
                       leading: Icon(Icons.credit_card),
-                      title: Text('Documento'),
+                      title: Text('DNI+PLANILLA'),
                     ),
                     buildImagePreview(documentPath),
                     ButtonBar(
@@ -104,7 +104,7 @@ class AtachStepState extends State<AtachStep> {
                           onPressed: () {
                             documentPath = null;
                             atachPicture(
-                                context, "Documento", "FIRMA_PADRON_DNI_");
+                                context, "DNI+PLANILLA", "FIRMA_PADRON_DNI_");
                           },
                         ),
                       ],

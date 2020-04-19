@@ -88,23 +88,31 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
+      body: Container(
+        decoration: BoxDecoration( 
+          color:Color(int.parse("0xfff44336"))
+        ),
+        child: Center(
+        
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: <Widget>[
             FutureBuilder(
               builder:(BuildContext c,s){
-                return Text('Loading...');
+                return Text('Cargando datos...',
+                style: TextStyle(color: Colors.white));
               },
               future:loadImage(),
               ),
             Text(
               APP_TITLE,
-              style: Theme.of(context).textTheme.display1,
+              style:TextStyle(color: Colors.white,fontSize: 20),
+            
             ),
           ],
         ),
       ),
+      )
       
     );
   }

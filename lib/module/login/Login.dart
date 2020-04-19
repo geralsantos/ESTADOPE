@@ -124,7 +124,10 @@ class LoginForm extends StatelessWidget {
                     Image(
                       image: AssetImage("assets/logo.png"),
                       fit: BoxFit.contain,
-                      height: 200,
+                      height: 170,
+                    ),
+                    Container(
+                      height: 50,
                     ),
                     TextFieldBlocBuilder(
                       textFieldBloc: loginFormBloc.email,

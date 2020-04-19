@@ -1,5 +1,5 @@
 const ROOT="http://138.68.42.71/estadope/api";
-const APP_TITLE="DONACIONES";
+const APP_TITLE="EstadoPE";
 //http://138.68.42.71/estadope/api/registros/tipodocumento/ver/
 //http://138.68.42.71/estadope/api/registros/tipocaptura/ver/
 //http://138.68.42.71/estadope/api/login/supervisor/
