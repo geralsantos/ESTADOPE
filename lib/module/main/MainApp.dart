@@ -14,7 +14,7 @@ class MainApp extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MainApp> {
-  String user = "", name = "None";
+  String user = "", name = "";
   int id = -1, ubigeId = -1, _selectedDrawerIndex = 1;
   void _exitApp() async {
     var result = await showDialog(
@@ -106,7 +106,7 @@ class _MyHomePageState extends State<MainApp> {
                   child: Column(
                     children: <Widget>[
                       Text(
-                        name,
+                        user,
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 24,
