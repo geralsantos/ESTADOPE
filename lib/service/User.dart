@@ -37,7 +37,7 @@ void setUbigeoId(int ubigeoId){
   }
  
   String getName(){
-    return name+' '+surnames;
+    return name+' '+(surnames==null?'':surnames);
   }
    String getUser(){
     return user;
