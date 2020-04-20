@@ -12,36 +12,59 @@ import 'package:flutter_form_bloc/flutter_form_bloc.dart';
 import 'package:estado/service/User.dart';
 import 'package:estado/service/LocationService.dart';
 import 'package:estado/service/Composition.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity/connectivity.dart';
 import 'MainApp.dart';
 import 'package:estado/module/main/LoadingDialog.dart';
+import 'package:estado/module/sotorage/FormBackup.dart';
 
 class WizardFormBloc extends FormBloc<String, String> {
   int ubigeoId, userId;
   String documentPath, beneficiarioPath, geoLocation;
   Helper helper = new Helper();
   List<Composition> compositions = new List();
+  var originalCompositions;
   bool savedInLocal = false;
   bool connectionStatus = false;
   BuildContext context;
+  FormBackup backup = new FormBackup();
+  dynamic findObject(String id, List arr) {
+    for (var o in arr) {
+      if (o['id'].toString() == id) {
+        return o;
+      }
+    }
+    return null;
+  }
+
+
   @override
   void onLoading() async {
     super.onLoading();
+    await backup.open();
     var connectivityResult = await (Connectivity().checkConnectivity());
+
     if (connectivityResult != ConnectivityResult.none) {
       connectionStatus = true;
       var docs = await helper.getDocuments();
       var types = await helper.getCaptureTypes(ubigeoId.toString());
       var states = await helper.getStates();
-      if (docs != null && types != null && states != null
-         && docs.length>0 && types.length>0 && states.length>0) {
+      if (docs != null &&
+          types != null &&
+          states != null &&
+          docs.length > 0 &&
+          types.length > 0 &&
+          states.length > 0) {
         select1.updateItems(docs);
-        select1.updateInitialValue(docs[0]);
+        var bdoc = await backup.read("select1", docs[0]['id'].toString());
+        select1.updateInitialValue(findObject(bdoc.toString(), docs));
         captureField.updateItems(types);
-        captureField.updateInitialValue(types[0]);
+        var btype =
+            await backup.read("captureField", types[0]['id'].toString());
+        captureField.updateInitialValue(findObject(btype.toString(), types));
         stateField.updateItems(states);
-        stateField.updateInitialValue(states[0]);
+        var bstate =
+            await backup.read("stateField", states[0]['id'].toString());
+        stateField.updateInitialValue(findObject(bstate.toString(), states));
 
         emitLoaded();
         if (!savedInLocal) {
@@ -60,16 +83,16 @@ class WizardFormBloc extends FormBloc<String, String> {
               await storage.insert(
                   "estadoentrega", new EstadoEntrega(row['id'], row['nombre']));
             }
-            final prefs = await SharedPreferences.getInstance();
-            prefs.setBool("saved_in_local", true);
-            print("saved in local");
+
+            backup.pref.setBool("saved_in_local", true);
           } catch (err) {
             print(err);
           }
         }
       } else {
         emitLoadFailed();
-        responseDialog(Icons.error, Colors.red, "Ocurrió un error al obtener información del servidor!", context);
+        responseDialog(Icons.error, Colors.red,
+            "Ocurrió un error al obtener información del servidor!", context);
       }
     } else {
       Storage storage = new Storage();
@@ -88,16 +111,48 @@ class WizardFormBloc extends FormBloc<String, String> {
         states = json.decode(json.encode(states));
         types = json.decode(json.encode(types));
         select1.updateItems(docs);
-        select1.updateInitialValue(docs[0]);
+        var bdoc = await backup.read("select1", docs[0]['id'].toString());
+        select1.updateInitialValue(findObject(bdoc.toString(), docs));
         captureField.updateItems(types);
-        captureField.updateInitialValue(types[0]);
+        var btype =
+            await backup.read("captureField", types[0]['id'].toString());
+        captureField.updateInitialValue(findObject(btype.toString(), types));
         stateField.updateItems(states);
-        stateField.updateInitialValue(states[0]);
+        var bstate =
+            await backup.read("stateField", states[0]['id'].toString());
+        stateField.updateInitialValue(findObject(bstate.toString(), states));
         emitLoaded();
       } else {
         emitLoadFailed();
       }
     }
+
+    documentNumber.updateValue(await backup.read("documentNumber", ""));
+    firstName.updateValue(await backup.read("firstName", ""));
+    lastName.updateValue(await backup.read("lastName", ""));
+    name.updateValue(await backup.read("name", ""));
+    direcction.updateValue(await backup.read("direcction", ""));
+    description.updateValue(await backup.read("description", ""));
+    populatedCenter.updateValue(await backup.read("populatedCenter", ""));
+
+    select1.addValidators([
+      (var value) {
+        backup.save("select1", value['id'].toString());
+        return null;
+      }
+    ]);
+    captureField.addValidators([
+      (var value) {
+        backup.save("captureField", value['id'].toString());
+        return null;
+      }
+    ]);
+    stateField.addValidators([
+      (var value) {
+        backup.save("stateField", value['id'].toString());
+        return null;
+      }
+    ]);
     geoLocation = await getLocation();
   }
 
@@ -138,11 +193,13 @@ class WizardFormBloc extends FormBloc<String, String> {
   final direcction = TextFieldBloc(name: 'direccion');
   final populatedCenter = TextFieldBloc(name: 'centro_poblado');
   final ghost = TextFieldBloc(name: 'ghost');
-  WizardFormBloc(int uId, int id, bool sil,BuildContext c) : super(isLoading: true) {
+  WizardFormBloc(int uId, int id, bool sil, BuildContext c)
+      : super(isLoading: true) {
     this.ubigeoId = uId;
     this.userId = id;
     this.savedInLocal = sil;
-    this.context=c;
+    this.context = c;
+
 
     addFieldBlocs(
       step: 0,
@@ -167,7 +224,6 @@ class WizardFormBloc extends FormBloc<String, String> {
 
   @override
   void onSubmitting() async {
-    print("submit");
     if (state.currentStep == 0) {
       emitSuccess();
     } else if (state.currentStep == 1) {
@@ -182,22 +238,37 @@ class WizardFormBloc extends FormBloc<String, String> {
       if (documentPath == null) {
         emitFailure(failureResponse: "Adjunte una foto del DNI+PLANILLA");
       } else {
-       bool send=await confirmSave(context, "¿Está seguro(a) de enviar?");
-       if(send){
-
+        bool send = await confirmSave(context, "¿Está seguro(a) de enviar?");
+        if (send) {
+                     backup.remove("documentNumber");
+           backup.remove("firstName");
+           backup.remove("lastName");
+           backup.remove("name");
+           backup.remove("direcction");
+           backup.remove("description");
+           backup.remove("populatedCenter");
+           backup.remove("select1");
+           backup.remove("captureField");
+           backup.remove("stateField");
+           backup.remove("compositions");
+           backup.remove("documentPath");
+           backup.remove("beneficiarioPath");
           bool status = await helper.save(state.toJson(), documentPath,
-            beneficiarioPath, ubigeoId, userId, geoLocation, compositions);
-        if (status) {
-          emitSuccess(successResponse: "Registro enviado con éxito");
-        } else {
-          emitFailure(
-              failureResponse:
-                  "Ocurrió un error inesperado, intentelo nuevamente!");
-        }
+              beneficiarioPath, ubigeoId, userId, geoLocation, compositions);
 
-       }else{
-         emitSuccess(successResponse: "nosave");
-       }
+           
+           
+
+          if (status) {
+            emitSuccess(successResponse: "Registro enviado con éxito");
+          } else {
+            emitFailure(
+                failureResponse:
+                    "Ocurrió un error inesperado, intentelo nuevamente!");
+          }
+        } else {
+          emitSuccess(successResponse: "nosave");
+        }
       }
     }
   }
@@ -215,7 +286,7 @@ class _WizardFormState extends State<WizardForm> {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => WizardFormBloc(widget.user.getubigeoId(),
-          widget.user.getId(), widget.user.savedInLocal,context),
+          widget.user.getId(), widget.user.savedInLocal, context),
       child: Builder(
         builder: (context) {
           return Theme(
@@ -236,10 +307,11 @@ class _WizardFormState extends State<WizardForm> {
                   onSuccess: (context, state) {
                     LoadingDialog.hide(context);
 
-                    if (state.stepCompleted == state.lastStep && state.successResponse!="nosave") {
+                    if (state.stepCompleted == state.lastStep &&
+                        state.successResponse != "nosave") {
                       responseDialog(Icons.check_circle, Colors.green,
                           state.successResponse, context);
-                          
+
                       Future.delayed(Duration(seconds: 3), () {
                         Navigator.of(context).pushReplacement(MaterialPageRoute(
                             builder: (_) =>
@@ -300,6 +372,9 @@ class _WizardFormState extends State<WizardForm> {
           TextFieldBlocBuilder(
             textFieldBloc: wizardFormBloc.documentNumber,
             keyboardType: TextInputType.number,
+            onChanged: (val) {
+              wizardFormBloc.backup.save("documentNumber", val);
+            },
             maxLength: 8,
             decoration: InputDecoration(
                 labelText: 'Número de documento',
@@ -307,6 +382,9 @@ class _WizardFormState extends State<WizardForm> {
           ),
           TextFieldBlocBuilder(
             textFieldBloc: wizardFormBloc.firstName,
+            onChanged: (val) {
+              wizardFormBloc.backup.save("firstName", val);
+            },
             keyboardType: TextInputType.text,
             decoration: InputDecoration(
                 labelText: 'Apellido paterno',
@@ -314,12 +392,18 @@ class _WizardFormState extends State<WizardForm> {
           ),
           TextFieldBlocBuilder(
             textFieldBloc: wizardFormBloc.lastName,
+            onChanged: (val) {
+              wizardFormBloc.backup.save("lastName", val);
+            },
             decoration: InputDecoration(
                 labelText: 'Apellido materno',
                 prefixIcon: Icon(Icons.account_circle)),
           ),
           TextFieldBlocBuilder(
             textFieldBloc: wizardFormBloc.name,
+            onChanged: (val) {
+              wizardFormBloc.backup.save("name", val);
+            },
             decoration: InputDecoration(
                 labelText: 'Nombres', prefixIcon: Icon(Icons.person)),
           ),
@@ -335,6 +419,9 @@ class _WizardFormState extends State<WizardForm> {
         children: <Widget>[
           TextFieldBlocBuilder(
             textFieldBloc: wizardFormBloc.direcction,
+            onChanged: (val) {
+              wizardFormBloc.backup.save("direcction", val);
+            },
             maxLength: 200,
             decoration: InputDecoration(
               labelText: 'Dirección',
@@ -343,16 +430,25 @@ class _WizardFormState extends State<WizardForm> {
           ),
           TextFieldBlocBuilder(
             textFieldBloc: wizardFormBloc.populatedCenter,
+            onChanged: (val) {
+              wizardFormBloc.backup.save("populatedCenter", val);
+            },
             decoration: InputDecoration(
               labelText: 'Centro poblado',
               prefixIcon: Icon(Icons.location_city),
             ),
           ),
-          CFDialog((chips) {
+          CFDialog((chips, args) {
             wizardFormBloc.compositions = chips;
+         if(args!=null){
+              wizardFormBloc.backup.save("compositions", json.encode(args));
+         }
           }),
           TextFieldBlocBuilder(
             textFieldBloc: wizardFormBloc.description,
+            onChanged: (val) {
+              wizardFormBloc.backup.save("description", val);
+            },
             keyboardType: TextInputType.multiline,
             maxLines: null,
             maxLength: 300,
@@ -381,14 +477,15 @@ FormBlocStep _atachmentStep(
     WizardFormBloc wizardFormBloc, BuildContext context) {
   return FormBlocStep(
       title: Text('Adjuntos'),
-      content: AtachStep((String docPath) {
+      content: AtachStep(
+          (String docPath) {
         wizardFormBloc.documentPath = docPath;
+        wizardFormBloc.backup.save("documentPath", docPath);
       }, (String bePath) {
         wizardFormBloc.beneficiarioPath = bePath;
+        wizardFormBloc.backup.save("beneficiarioPath", bePath);
       }));
 }
-
-
 
 void responseDialog(
     IconData icon, Color color, String msj, BuildContext context) {

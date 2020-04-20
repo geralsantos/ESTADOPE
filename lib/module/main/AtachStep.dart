@@ -1,3 +1,4 @@
+import 'package:estado/module/sotorage/FormBackup.dart';
 import 'package:flutter/material.dart';
 import 'package:estado/module/main/CameraController.dart';
 import 'package:camera/camera.dart';
@@ -16,6 +17,24 @@ class AtachStep extends StatefulWidget {
 class AtachStepState extends State<AtachStep> {
   String documentPath;
   String beneficiarioPath;
+  FormBackup backup=new FormBackup();
+  @override
+  void initState() {
+
+    super.initState();
+    init();
+  }
+   void init() async {
+    await backup.open();
+     var d = await backup.read("documentPath", null);
+    var b = await backup.read("beneficiarioPath", null);
+    setState(() {
+      documentPath=d;
+      beneficiarioPath=b;
+    });
+     widget.documentCallback(d);
+       widget.beneficiarioCallback(b);
+  }
   void atachPicture(BuildContext context, String title, String pref) async {
     final cameras = await availableCameras();
     final firstCamera = cameras.first;

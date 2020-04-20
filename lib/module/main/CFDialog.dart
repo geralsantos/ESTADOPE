@@ -1,8 +1,12 @@
+import 'dart:convert';
+
+import 'package:estado/module/sotorage/FormBackup.dart';
 import 'package:estado/service/Composition.dart';
 import 'package:flutter/material.dart';
 
 class CFDialog extends StatefulWidget {
   final Function callback;
+
   CFDialog(this.callback);
   @override
   CFDialogState createState() {
@@ -13,6 +17,22 @@ class CFDialog extends StatefulWidget {
 class CFDialogState extends State<CFDialog> {
   var chipValues = <Composition>[];
   var chipsArgs;
+  FormBackup backup=new FormBackup();
+  @override
+  void initState() { 
+    super.initState();
+  
+    init();
+  }
+  
+  void init() async {
+    await backup.open();
+    var args = await backup.read("compositions", null);
+   if(args!=null){
+     updateChips(json.decode(args));
+   }
+
+  }
   List<Widget> buildItems() {
     var items = <Widget>[];
     if (chipValues.length > 0) {
@@ -69,7 +89,7 @@ class CFDialogState extends State<CFDialog> {
       chipsArgs = args;
       chipValues = chips;
     });
-    widget.callback(chips);
+    widget.callback(chips,args);
   }
 
   void show() {

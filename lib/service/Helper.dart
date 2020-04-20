@@ -145,7 +145,7 @@ class Helper {
         request.fields['observaciones'] = args['observaciones'];
         request.fields['estado_entrega_id'] =
             args['estado_entrega_id'].toString();
-        request.fields['georeferencia'] = geoLocation;
+        request.fields['georeferencia'] = geoLocation==null?'':geoLocation;
         request.fields['usuario_id'] = user.toString();
         request.fields['ubigeo_id'] = ubigeo.toString();
         if (compositions != null && compositions.length > 0) {
