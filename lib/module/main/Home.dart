@@ -67,7 +67,7 @@ class WizardFormBloc extends FormBloc<String, String> {
         stateField.updateInitialValue(findObject(bstate.toString(), states));
 
         emitLoaded();
-        if (!savedInLocal) {
+        if (savedInLocal!=null || savedInLocal==false) {
           try {
             Storage storage = new Storage();
             await storage.open();
@@ -224,6 +224,9 @@ class WizardFormBloc extends FormBloc<String, String> {
 
   @override
   void onSubmitting() async {
+    if(geoLocation==null){
+      geoLocation = await getLocation();
+    }
     if (state.currentStep == 0) {
       emitSuccess();
     } else if (state.currentStep == 1) {
@@ -284,6 +287,7 @@ class WizardForm extends StatefulWidget {
 class _WizardFormState extends State<WizardForm> {
   @override
   Widget build(BuildContext context) {
+    
     return BlocProvider(
       create: (context) => WizardFormBloc(widget.user.getubigeoId(),
           widget.user.getId(), widget.user.savedInLocal, context),
@@ -326,6 +330,22 @@ class _WizardFormState extends State<WizardForm> {
                   },
                   child: StepperFormBlocBuilder<WizardFormBloc>(
                     type: StepperType.vertical,
+                    controlsBuilder: (context, onStepContinue, onStepCancel, step, formBloc){
+                       return Row(
+           children: <Widget>[
+             RaisedButton(
+               onPressed: onStepContinue,
+               color: Colors.red,
+               textColor: Colors.white,
+               child: const Text('Continuar'),
+             ),
+             FlatButton(
+               onPressed: onStepCancel,
+               child: const Text('Regresar'),
+             ),
+           ],
+         );
+                    },
                     onStepTapped: (FormBloc f, int i) {},
                     physics: ClampingScrollPhysics(),
                     stepsBuilder: (formBloc) {
@@ -348,6 +368,7 @@ class _WizardFormState extends State<WizardForm> {
   FormBlocStep _generalStep(WizardFormBloc wizardFormBloc) {
     return FormBlocStep(
       title: Text('General'),
+  
       content: Column(
         children: <Widget>[
           DropdownFieldBlocBuilder(
