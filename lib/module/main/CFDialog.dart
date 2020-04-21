@@ -46,7 +46,7 @@ class CFDialogState extends State<CFDialog> {
         ));
       }
     } else {
-      items.add(Text("Composición por edad"));
+      items.add(Text("Composición familiar"));
     }
     return items;
   }

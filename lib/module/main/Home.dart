@@ -455,7 +455,7 @@ class _WizardFormState extends State<WizardForm> {
               wizardFormBloc.backup.save("populatedCenter", val);
             },
             decoration: InputDecoration(
-              labelText: 'Centro poblado',
+              labelText: 'Centro poblado / Asentamiento',
               prefixIcon: Icon(Icons.location_city),
             ),
           ),
