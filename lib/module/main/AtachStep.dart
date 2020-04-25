@@ -107,7 +107,7 @@ class AtachStepState extends State<AtachStep> {
                     ButtonBar(
                       children: <Widget>[
                         FlatButton(
-                          child: const Text('ELIMINAR'),
+                          child: const Text('Eliminar'),
                           textColor: Colors.grey,
                           onPressed: () {
                             setState(() {
@@ -119,7 +119,7 @@ class AtachStepState extends State<AtachStep> {
                           },
                         ),
                         FlatButton(
-                          child: const Text('ADJUNTAR'),
+                          child: const Text('Foto'),
                           onPressed: () {
                             documentPath = null;
                             atachPicture(
@@ -154,7 +154,7 @@ class AtachStepState extends State<AtachStep> {
                     ButtonBar(
                       children: <Widget>[
                         FlatButton(
-                          child: const Text('ELIMINAR'),
+                          child: const Text('Eliminar'),
                           textColor: Colors.grey,
                           onPressed: () {
                             setState(() {
@@ -166,7 +166,7 @@ class AtachStepState extends State<AtachStep> {
                           },
                         ),
                         FlatButton(
-                          child: const Text('ADJUNTAR'),
+                          child: const Text('Foto'),
                           onPressed: () {
                             beneficiarioPath = null;
                             atachPicture(
