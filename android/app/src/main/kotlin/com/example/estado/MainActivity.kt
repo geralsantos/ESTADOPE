@@ -1,4 +1,4 @@
-package com.estadope
+package canastas.servicios.gob.pe
 
 import androidx.annotation.NonNull;
 import io.flutter.embedding.android.FlutterActivity
