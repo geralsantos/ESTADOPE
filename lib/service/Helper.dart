@@ -76,7 +76,7 @@ class Helper {
       row['beneficiario_path'],
        row['ubigeo_id'], 
        row['usuario_id'],
-        row['georeferencia'],compositions);
+        row['georeferencia'],compositions,row['tipo_documento_id']);
         if(uploaded){
           await s.destroy("donacion",row['id']);
         }
@@ -89,7 +89,7 @@ class Helper {
   }
 
   Future<bool> localSave(args, String docPath, String bePath, int ubigeo,
-      int user, String geoLocation, compositions) async {
+      int user, String geoLocation, compositions, int tipodocumento) async {
     try {
       List j = new List();
       for (var c in compositions) {
@@ -100,7 +100,7 @@ class Helper {
           user,
           ubigeo,
           args['tipo_captura_id'],
-          args['tipo_documento_id'],
+          tipodocumento,
           args['estado_entrega_id'],
           args['numero_documento'],
           Uri.encodeComponent(args['primer_apellido']),
@@ -124,18 +124,18 @@ class Helper {
   }
 
   Future<bool> save(args, String docPath, String bePath, int ubigeo, int user,
-      String geoLocation, compositions) async {
+      String geoLocation, compositions, var tipodocumento) async {
     var connectivityResult = await (Connectivity().checkConnectivity());
     if (connectivityResult == ConnectivityResult.none) {
       return await localSave(
-          args, docPath, bePath, ubigeo, user, geoLocation, compositions);
+          args, docPath, bePath, ubigeo, user, geoLocation, compositions,int.parse(tipodocumento));
     } else {
       try {
         var postUri = Uri.parse(ROOT + '/registros/guardarBeneficiario/');
         var request = new http.MultipartRequest("POST", postUri);
         request.fields['tipo_captura_id'] = args['tipo_captura_id'].toString();
         request.fields['tipo_documento_id'] =
-            args['tipo_documento_id'].toString();
+            tipodocumento.toString();
         request.fields['numero_documento'] = args['numero_documento'];
         request.fields['primer_apellido'] = args['primer_apellido'];
         request.fields['segundo_apellido'] = args['segundo_apellido'];
