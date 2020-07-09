@@ -15,6 +15,9 @@ final String observaciones;
 final String georeferencia;
 final String documentoPath;
 final String beneficiarioPath;
+final String numeroTelefono;
+final int tipoViviendaId;
+
  Donation(
    this.usuarioId,
    this.ubigeoId,
@@ -31,7 +34,7 @@ final String beneficiarioPath;
    this.observaciones,
    this.georeferencia,
    this.documentoPath,
-   this.beneficiarioPath
+   this.beneficiarioPath,this.numeroTelefono,this.tipoViviendaId
    );
 Map<String,dynamic> toMap(){
   return {
@@ -50,7 +53,10 @@ Map<String,dynamic> toMap(){
 "observaciones":observaciones,
 "georeferencia":georeferencia,
 "documento_path":documentoPath,
-"beneficiario_path":beneficiarioPath
+"beneficiario_path":beneficiarioPath,
+"numero_telefono":numeroTelefono,
+"tipo_vivienda_id":tipoViviendaId,
+
   };
 }
 }

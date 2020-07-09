@@ -11,6 +11,10 @@ create table  if not exists estadoentrega(
 id integer not null primary key autoincrement,
 nombre varchar(200)
 );
+create table  if not exists tipovivienda(
+id integer not null primary key autoincrement,
+nombre varchar(200),
+);
 create table  if not exists donacion(
 id integer not null primary key autoincrement,
 usuario_id integer,

@@ -38,3 +38,14 @@ class EstadoEntrega{
     return 'EstadoEntrega{id: $id, nombre: $nombre}';
   }
 }
+class TipoVivienda{
+  final int id;
+  final String nombre;
+  TipoVivienda(this.id,this.nombre);
+    Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'nombre': nombre,
+    };
+  }
+}

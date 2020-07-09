@@ -28,6 +28,8 @@ class CFDialogState extends State<CFDialog> {
   void init() async {
     await backup.open();
     var args = await backup.read("compositions", null);
+    print("init");
+    print(args);
    if(args!=null){
      updateChips(json.decode(args));
    }
@@ -80,6 +82,9 @@ class CFDialogState extends State<CFDialog> {
 
   void updateChips(args) {
     var chips = <Composition>[];
+    print("args");
+    print(args);
+    print(int.parse(args['cf011']));
     chips.add(new Composition("0-11", args['cf011'], 1));
     chips.add(new Composition("12-17", args['cf1217'], 2));
     chips.add(new Composition("18-29", args['cf1829'], 3));

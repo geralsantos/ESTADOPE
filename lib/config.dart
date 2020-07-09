@@ -1,4 +1,7 @@
-const ROOT="https://donacionescovid19.servicios.gob.pe/api";
+//const ROOT="https://donacionescovid19.servicios.gob.pe/api";
+//const ROOT="http://canastasperu2020.colonias.pe/api";
+const ROOT="http://192.168.0.51:8000/api";
+
 const APP_TITLE="Canastas Perú";
 //http://138.68.42.71/estadope/api/registros/tipodocumento/ver/
 //http://138.68.42.71/estadope/api/registros/tipocaptura/ver/

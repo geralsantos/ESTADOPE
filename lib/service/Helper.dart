@@ -13,6 +13,8 @@ class Helper {
   Future getDocuments() async {
     try {
       var request = await http.get(ROOT + '/registros/tipodocumento/ver/');
+      print("json.decode(request.body)");
+      print(request.body);
       return json.decode(request.body);
     } catch (e) {
       print(e);
@@ -28,7 +30,6 @@ class Helper {
     } catch (e) {
       print(e);
     }
-
     return null;
   }
 
@@ -42,50 +43,81 @@ class Helper {
     return null;
   }
 
+  Future<List> getTipoViviendas() async {
+    try {
+      var request = await http.get(ROOT + '/registros/tiposvivienda/ver/');
+      return json.decode(request.body);
+    } catch (e) {
+      print(e.toString());
+    }
+    return null;
+  }
+
   Future<List<dynamic>> getDonations() async {
     Storage s = new Storage();
     await s.open();
     return await s.getAll("donacion", null);
   }
 
-  Future<bool> upload() async {
-   try{
-      Storage s = new Storage();
-    await s.open();
-    var rows = await s.getAll("donacion", null);
-    for (var row in rows) {
-      var args = {
-        "tipo_captura_id": row['tipo_captura_id'],
-        "tipo_documento_id": row['tipo_documento_id'],
-        "estado_entrega_id": row['estado_entrega_id'],
-        "numero_documento": row['numero_documento'],
-        "primer_apellido": Uri.decodeComponent(row['primer_apellido']),
-        "segundo_apellido": Uri.decodeComponent(row['segundo_apellido']),
-        "nombre": Uri.decodeComponent(row['nombre']),
-        "direccion": Uri.decodeComponent(row['direccion']),
-        "centro_poblado": Uri.decodeComponent(row['centro_poblado']),
-        "observaciones": Uri.decodeComponent(row['observaciones'])
-      };
-      List<Composition> compositions=new List();
-      var compostionsRows=json.decode(row['composicion']);
-      for(var c in compostionsRows){
-        compositions.add(new Composition(c['nombre'], c['cantidad'], c['id']));
-      }
-     bool uploaded= await save(args, 
-      row['documento_path'], 
-      row['beneficiario_path'],
-       row['ubigeo_id'], 
-       row['usuario_id'],
-        row['georeferencia'],compositions,row['tipo_documento_id']);
-        if(uploaded){
-          await s.destroy("donacion",row['id']);
-        }
+  Future getDataBeneficiario(String numero_documento) async {
+    try {
+      var request = await http
+          .post(ROOT + '/registros/obtenerBeneficiario/', body: {
+        "numero_documento": numero_documento.trim()
+      });
+      return json.decode(request.body);
+    } catch (e) {
+      print(e);
     }
-    return true;
-   }catch(err){
-     print(err);
-   }
-   return false;
+    return null;
+  }
+
+  Future<bool> upload() async {
+    try {
+      Storage s = new Storage();
+      await s.open();
+      var rows = await s.getAll("donacion", null);
+      for (var row in rows) {
+        var args = {
+          "tipo_captura_id": row['tipo_captura_id'],
+          "tipo_documento_id": row['tipo_documento_id'],
+          "estado_entrega_id": row['estado_entrega_id'],
+          "numero_documento": row['numero_documento'],
+          "primer_apellido": Uri.decodeComponent(row['primer_apellido']),
+          "segundo_apellido": Uri.decodeComponent(row['segundo_apellido']),
+          "nombre": Uri.decodeComponent(row['nombre']),
+          "direccion": Uri.decodeComponent(row['direccion']),
+          "centro_poblado": Uri.decodeComponent(row['centro_poblado']),
+          "observaciones": Uri.decodeComponent(row['observaciones']),
+          "numero_telefono": row['numero_telefono'],
+          "tipo_vivienda_id": row['tipo_vivienda_id'],
+        };
+        print("args locale");
+        print(args);
+        List<Composition> compositions = new List();
+        var compostionsRows = json.decode(row['composicion']);
+        for (var c in compostionsRows) {
+          compositions
+              .add(new Composition(c['nombre'], c['cantidad'], c['id']));
+        }
+        bool uploaded = await save(
+            args,
+            row['documento_path'],
+            row['beneficiario_path'],
+            row['ubigeo_id'],
+            row['usuario_id'],
+            row['georeferencia'],
+            compositions,
+            row['tipo_documento_id']);
+        if (uploaded) {
+          await s.destroy("donacion", row['id']);
+        }
+      }
+      return true;
+    } catch (err) {
+      print(err);
+    }
+    return false;
   }
 
   Future<bool> localSave(args, String docPath, String bePath, int ubigeo,
@@ -112,7 +144,9 @@ class Helper {
           Uri.encodeComponent(args['observaciones']),
           geoLocation,
           docPath,
-          bePath);
+          bePath,
+          args['numero_telefono'],
+          args['tipo_vivienda_id']);
       Storage s = new Storage();
       await s.open();
       await s.insert("donacion", donation);
@@ -127,15 +161,14 @@ class Helper {
       String geoLocation, compositions, var tipodocumento) async {
     var connectivityResult = await (Connectivity().checkConnectivity());
     if (connectivityResult == ConnectivityResult.none) {
-      return await localSave(
-          args, docPath, bePath, ubigeo, user, geoLocation, compositions,int.parse(tipodocumento));
+      return await localSave(args, docPath, bePath, ubigeo, user, geoLocation,
+          compositions, int.parse(tipodocumento));
     } else {
       try {
         var postUri = Uri.parse(ROOT + '/registros/guardarBeneficiario/');
         var request = new http.MultipartRequest("POST", postUri);
         request.fields['tipo_captura_id'] = args['tipo_captura_id'].toString();
-        request.fields['tipo_documento_id'] =
-            tipodocumento.toString();
+        request.fields['tipo_documento_id'] = tipodocumento.toString();
         request.fields['numero_documento'] = args['numero_documento'];
         request.fields['primer_apellido'] = args['primer_apellido'];
         request.fields['segundo_apellido'] = args['segundo_apellido'];
@@ -145,9 +178,14 @@ class Helper {
         request.fields['observaciones'] = args['observaciones'];
         request.fields['estado_entrega_id'] =
             args['estado_entrega_id'].toString();
-        request.fields['georeferencia'] = geoLocation==null?'':geoLocation;
+        request.fields['georeferencia'] =
+            geoLocation == null ? '' : geoLocation;
         request.fields['usuario_id'] = user.toString();
         request.fields['ubigeo_id'] = ubigeo.toString();
+        request.fields['numero_telefono'] = args['numero_telefono'].toString();
+        request.fields['tipo_vivienda_id'] =
+            args['tipo_vivienda_id'].toString();
+
         if (compositions != null && compositions.length > 0) {
           var i = 0;
           for (var c in compositions) {
@@ -173,17 +211,17 @@ response.stream.transform(utf8.decoder).listen((value) {
         return Future.value(value);
       });
    */
-        if(response.statusCode==200){
-final file = File(docPath);
-if( file.existsSync()){
-    await file.delete();
-}
-if(bePath!=null){
-  final file = File(bePath);
-if( file.existsSync()){
-    await file.delete();
-}
-}
+        if (response.statusCode == 200) {
+          final file = File(docPath);
+          if (file.existsSync()) {
+            await file.delete();
+          }
+          if (bePath != null) {
+            final file = File(bePath);
+            if (file.existsSync()) {
+              await file.delete();
+            }
+          }
           return true;
         }
         return false;
