@@ -5,6 +5,7 @@ import 'package:estado/module/entity/Tables.dart';
 import 'package:estado/module/main/AtachStep.dart';
 import 'package:estado/module/main/CFDialog.dart';
 import 'package:estado/module/sotorage/Storage.dart';
+import 'package:estado/module/sotorage/Storage2.dart';
 import 'package:estado/service/Helper.dart';
 import 'package:estado/utils/CustomValidator.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +14,7 @@ import 'package:estado/service/User.dart';
 import 'package:estado/service/LocationService.dart';
 import 'package:estado/service/Composition.dart';
 import 'package:connectivity/connectivity.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'MainApp.dart';
 import 'package:estado/module/main/LoadingDialog.dart';
 import 'package:estado/module/sotorage/FormBackup.dart';
@@ -20,9 +22,14 @@ import 'package:estado/module/main/DropdownField.dart';
 
 TextInputType _inputType = TextInputType.number;
 var tiposDocumento = [];
+var zonasEntregaG = [];
 Storage storage = new Storage();
 var codigoDni = "";
-var isPasaporte = false,sinDNI=false;
+var isPasaporte = false, sinDNI = false;
+int _ubigeoId;
+FocusNode focusApeP;
+FocusNode focusNumDoc;
+
 class WizardFormBloc extends FormBloc<String, String> {
   int ubigeoId, userId;
   String documentPath, beneficiarioPath, geoLocation;
@@ -31,7 +38,9 @@ class WizardFormBloc extends FormBloc<String, String> {
   var originalCompositions;
   bool savedInLocal = false;
   bool connectionStatus = false;
-  BuildContext context;
+  BuildContext contexto;
+  var searchBen = false;
+
   var _varprueba = true;
 
   FormBackup backup = new FormBackup();
@@ -49,20 +58,26 @@ class WizardFormBloc extends FormBloc<String, String> {
   void onLoading() async {
     super.onLoading();
     await backup.open();
-    var connectivityResult = await (Connectivity().checkConnectivity());
 
-    if (connectivityResult != ConnectivityResult.none) {
-     dialogLoadingData(
+    var connectivityResult = await (Connectivity().checkConnectivity());
+    var zonaentregainitvalue;
+    var parentescoinitvalue;
+    dynamic activeInternet = await backup.read("activeInternet", "true");
+    if (activeInternet == "true"
+        ? (connectivityResult != ConnectivityResult.none)
+        : false) {
+      dialogLoadingData(
           Icons.check_circle,
           Colors.green,
-          "Actualizando datos locales, no retirar la conexión a internet...",
-          context);
+          "Obteniendo datos del servidor, no retirar la conexión a internet...",
+          contexto);
       connectionStatus = true;
       var docs = await helper.getDocuments();
       var types = await helper.getCaptureTypes(ubigeoId.toString());
       var states = await helper.getStates();
       var tipovivienda_sql = await helper.getTipoViviendas();
-      
+      var zonasentrega_sql = await helper.getZonasEntrega(ubigeoId.toString());
+      var parentesco_sql = await helper.getParentesco();
       if (docs != null &&
           types != null &&
           states != null &&
@@ -72,31 +87,40 @@ class WizardFormBloc extends FormBloc<String, String> {
           states.length > 0 &&
           tipovivienda_sql.length > 0) {
         select1.updateItems(docs);
-
         var bdoc = await backup.read("select1", docs[0]['id'].toString());
-        print("bdocbdocbdocbdoc");
-        print(bdoc);
-        if (bdoc == "1" || bdoc == "3") {
+        if (bdoc == "1" ) {
           _inputType = TextInputType.number;
         } else {
           _inputType = TextInputType.text;
         }
-        isPasaporte = bdoc=="3";
-        sinDNI = bdoc=="4";
+        isPasaporte = bdoc == "3";
+        sinDNI = bdoc == "4";
 
         //select1.updateInitialValue(findObject(bdoc.toString(), docs));
         var docType = findObject(bdoc.toString(), docs);
         select1.updateInitialValue(docType);
         documentType = docType;
 
-        /*if(bdoc!=null && bdoc["codigo"]=="dni"){
-          print("if_after");
-        }*/
-
+       
         captureField.updateItems(types);
         var btype =
             await backup.read("captureField", types[0]['id'].toString());
         captureField.updateInitialValue(findObject(btype.toString(), types));
+        //captureField.updateItems(types);
+
+        if (zonasentrega_sql != null && zonasentrega_sql.length > 0) {
+          zonaentregaField.updateItems(zonasentrega_sql);
+          zonaentregainitvalue = await backup.read(
+              "zonaentrega", zonasentrega_sql[0]['id'].toString());
+          zonaentregaField.updateInitialValue(
+              findObject(zonaentregainitvalue.toString(), zonasentrega_sql));
+        }
+        /*if(parentesco_sql != null && parentesco_sql.length > 0){
+          zonaentregaField.updateItems(parentesco_sql);
+          parentescoinitvalue =  await backup.read("zonaentrega", parentesco_sql[0]['id'].toString());
+          zonaentregaField.updateInitialValue(findObject(parentescoinitvalue.toString(), parentesco_sql));
+        }*/
+
         stateField.updateItems(states);
         var bstate =
             await backup.read("stateField", states[0]['id'].toString());
@@ -109,18 +133,12 @@ class WizardFormBloc extends FormBloc<String, String> {
             findObject(btipovivienda.toString(), tipovivienda_sql));
 
         emitLoaded();
-        print("----savedInLocal-----");
-        cerrarDialogGlobal(context);
-        print(savedInLocal);
-        print(savedInLocal != null);
-        print(savedInLocal == false);
+        cerrarDialogGlobal(contexto);
         if (savedInLocal == null || savedInLocal == false) {
-          
           try {
             //await storage.open();
-            print("guardado con internet");
+            await storage.dropDatabase();
             for (var doc in docs) {
-              print(doc['nombre']);
               await storage.insert(
                   "tipodocumento", new TipoDocumento(doc['id'], doc['nombre']));
             }
@@ -137,7 +155,16 @@ class WizardFormBloc extends FormBloc<String, String> {
               await storage.insert(
                   "tipovivienda", new TipoVivienda(row['id'], row['nombre']));
             }
-            print("----data storage registrado-----");
+
+            for (var row in zonasentrega_sql) {
+              await storage.insert(
+                  "zonaentrega", new ZonaEntrega(row['id'], row['nombre']));
+            }
+            for (var row in parentesco_sql) {
+              await storage.insert(
+                  "parentesco", new Parentesco(row['id'], row['nombre']));
+            }
+
             backup.pref.setBool("saved_in_local", true);
           } catch (err) {
             print("err");
@@ -147,18 +174,14 @@ class WizardFormBloc extends FormBloc<String, String> {
       } else {
         emitLoadFailed();
         responseDialog(Icons.error, Colors.red,
-            "Ocurrió un error al obtener información del servidor!", context);
+            "Ocurrió un error al obtener información del servidor!", contexto);
       }
     } else {
       //sin internet
       //await storage.open();
-      print("storage");
-      print(storage);
       var docs = await storage.getAll("tipodocumento", (var maps, int index) {
         return maps;
       });
-      print("wwwww.open docs wizard");
-      print(json.decode(json.encode(docs)));
       var types = await storage.getAll("tipocaptura", (var maps, int index) {
         return maps;
       });
@@ -170,8 +193,6 @@ class WizardFormBloc extends FormBloc<String, String> {
           await storage.getAll("tipovivienda", (var maps, int index) {
         return maps;
       });
-      print("----data storage obtenida sin internet-----");
-
       if (docs != null &&
           states != null &&
           types != null &&
@@ -180,19 +201,19 @@ class WizardFormBloc extends FormBloc<String, String> {
         states = json.decode(json.encode(states));
         types = json.decode(json.encode(types));
         tipovivienda_sql = json.decode(json.encode(tipovivienda_sql));
+
         select1.updateItems(docs);
         var bdoc = await backup.read("select1", docs[0]['id'].toString());
-
         select1.updateInitialValue(findObject(bdoc.toString(), docs));
-        print("bdoc");
-        print(bdoc);
+
         if (bdoc == "1") {
           _inputType = TextInputType.number;
         } else {
           _inputType = TextInputType.text;
         }
-        isPasaporte = bdoc=="3";
-        sinDNI = bdoc=="4";
+        isPasaporte = bdoc == "3";
+        sinDNI = bdoc == "4";
+
         captureField.updateItems(types);
         var btype =
             await backup.read("captureField", types[0]['id'].toString());
@@ -215,7 +236,12 @@ class WizardFormBloc extends FormBloc<String, String> {
     }
 
     telephoneNumber.updateValue(await backup.read("telephoneNumber", ""));
-    documentNumber.updateValue(await backup.read("documentNumber", ""));
+    if (sinDNI) {
+      backup.save("documentnumber", null);
+      documentNumber.updateValue(null);
+    } else {
+      documentNumber.updateValue(await backup.read("documentNumber", ""));
+    }
 
     firstName.updateValue(await backup.read("firstName", ""));
     lastName.updateValue(await backup.read("lastName", ""));
@@ -231,6 +257,15 @@ class WizardFormBloc extends FormBloc<String, String> {
         return null;
       }
     ]);
+
+    zonaentregaField.addValidators([
+      (value) {
+        backup.save(
+            "zonaentrega", value == null ? "0" : value['id'].toString());
+        return null;
+      }
+    ]);
+
     captureField.addValidators([
       (var value) {
         backup.save("captureField", value['id'].toString());
@@ -258,6 +293,14 @@ class WizardFormBloc extends FormBloc<String, String> {
     validators: [CustomValidator.req("Seleccione el tipo de documento")],
     toJson: (value) => value['id'],
   );
+
+  var zonaentregaField = SelectFieldBloc(
+    name: 'zona_entrega_id',
+    items: [],
+    //validators: [CustomValidator.req("Seleccione una zona de entrega")],
+    toJson: (value) => value['id'],
+  );
+
   var captureField = SelectFieldBloc(
       name: 'tipo_captura_id',
       items: [],
@@ -275,8 +318,10 @@ class WizardFormBloc extends FormBloc<String, String> {
       toJson: (value) => value['id']);
 
   var documentNumber = TextFieldBloc(
-    name: 'numero_documento'/*,
-    validators: [CustomValidator.req("Ingrese un número de documento")]*/,
+    name:
+        'numero_documento' /*,
+    validators: [CustomValidator.req("Ingrese un número de documento")]*/
+    ,
   );
   var telephoneNumber = TextFieldBloc(
     name: 'numero_telefono',
@@ -299,34 +344,15 @@ class WizardFormBloc extends FormBloc<String, String> {
   var ghost = TextFieldBloc(name: 'ghost');
   WizardFormBloc(int uId, int id, bool sil, BuildContext c)
       : super(isLoading: true) {
-
+    
     documentNumber.addValidators([
       (value) {
-        print("validators");
-        print(isPasaporte);
-        print(sinDNI);
-        print("value != null");
-        print(value);
-        print(value != null);
-
-        //TextInputType.numberWithOptions()
-        if(sinDNI){
+        if (sinDNI) {
           return null;
         }
         if (value != null) {
-          print("_inputType");
-          print(_inputType == TextInputType.number);
-
           if (_inputType == TextInputType.number) {
-            if(isPasaporte){
-              if (!isNumeric(value)) {
-                return 'El pasaporte debe ser numérico';
-              }
-              if(value.length != 6){
-                return "El pasaporte debe ser igual a 6 dígitos";
-              }
-              return null;
-            }
+            
             if (value.length == 8) {
               if (!isNumeric(value)) {
                 return 'El núm. de DNI debe ser numérico';
@@ -335,13 +361,17 @@ class WizardFormBloc extends FormBloc<String, String> {
               return 'El núm. de DNI debe ser igual a 8 dígitos';
             }
           } else if (_inputType == TextInputType.text) {
+            if (isPasaporte) {
+              if (value.length > 12) {
+                return "El pasaporte debe ser máximo 12 dígitos";
+              }
+              return null;
+            }
             if (value.length > 12) {
-              return 'El núm. de carnet debe ser menor a 12 dígitos';
+              return 'El núm. de carnet debe ser máximo 12 dígitos';
             }
           }
         } else {
-          print('Ingrese un número de documento');
-
           return 'Ingrese un número de documento';
         }
         return null;
@@ -359,11 +389,10 @@ class WizardFormBloc extends FormBloc<String, String> {
     ]);
 
     this.ubigeoId = uId;
+    _ubigeoId = uId;
     this.userId = id;
     //this.savedInLocal = sil;
-    print("this.savedInLocal");
-    print(this.savedInLocal);
-    this.context = c;
+    this.contexto = c;
 
     addFieldBlocs(
       step: 0,
@@ -380,6 +409,7 @@ class WizardFormBloc extends FormBloc<String, String> {
     addFieldBlocs(
       step: 1,
       fieldBlocs: [
+        zonaentregaField,
         tipovivienda,
         direcction,
         populatedCenter,
@@ -409,11 +439,17 @@ class WizardFormBloc extends FormBloc<String, String> {
       }
     } else if (state.currentStep == 2) {
       if (documentPath == null) {
-        emitFailure(failureResponse: "Adjunte una foto del DNI+PLANILLA");
+        emitFailure(failureResponse: "Adjunte una foto de la Evidencia 1");
       } else {
-        bool send = await confirmSave(context, "¿Está seguro(a) de enviar?");
+        bool send = await confirmSave(contexto, "¿Está seguro(a) de enviar?");
         if (send) {
-          bool status = await helper.save(
+          var tipodoc = await backup.read("select1", null);
+          var frnumero_documento = await backup.read("frnumero_documento", "");
+          var frapellido_paterno = await backup.read("frapellido_paterno", "");
+          var frapellido_materno = await backup.read("frapellido_materno", "");
+          var frnombres = await backup.read("frnombres", "");
+          var frparentesco = await backup.read("parentesco", "0");
+          dynamic status = await helper.save(
               state.toJson(),
               documentPath,
               beneficiarioPath,
@@ -421,10 +457,14 @@ class WizardFormBloc extends FormBloc<String, String> {
               userId,
               geoLocation,
               compositions,
-              await backup.read("select1", null));
-          //backup.remove("select1");
+              tipodoc,
+              frnumero_documento,
+              frapellido_paterno,
+              frapellido_materno,
+              frnombres,
+              frparentesco);
 
-          if (status) {
+          if (status != null) {
             backup.remove("documentNumber");
             backup.remove("telephoneNumber");
             backup.remove("firstName");
@@ -433,12 +473,38 @@ class WizardFormBloc extends FormBloc<String, String> {
             backup.remove("direcction");
             backup.remove("description");
             backup.remove("populatedCenter");
+            //backup.remove("select1");
             //backup.remove("captureField");
             //backup.remove("stateField");
             backup.remove("compositions");
             backup.remove("documentPath");
             backup.remove("beneficiarioPath");
-            emitSuccess(successResponse: "Registro enviado con éxito");
+            backup.remove("zonaentrega");
+            backup.remove("parentesco");
+            backup.remove("frnumero_documento");
+            backup.remove("frapellido_paterno");
+            backup.remove("frapellido_materno");
+            backup.remove("frnombres");
+            if (status == true) {
+              emitSuccess(successResponse: "Registro enviado con éxito.");
+            } else {
+              if (tipodoc == "4") {
+                var data = json.decode(status);
+                responseDialogSaved(
+                    Icons.check,
+                    Colors.green,
+                    "EL CÓDIGO GENERADO PARA EL BENEFICIARIO ES: " +
+                        data["data"],
+                    contexto, () {
+                  emitSuccess(successResponse: "Registro enviado con éxito.");
+                });
+              } else {
+                emitSuccess(successResponse: "Registro enviado con éxito.");
+              }
+            }
+
+            //
+
           } else {
             emitFailure(
                 failureResponse:
@@ -451,43 +517,64 @@ class WizardFormBloc extends FormBloc<String, String> {
     }
   }
 
-  Future findDataFromService(WizardFormBloc b,String numero_documento) async {
+  Future<bool> findDataFromServiceCanasta(
+      WizardFormBloc b, String numero_documento) async {
     Helper help = new Helper();
-
-    dialogLoadingData(
-        Icons.check_circle,
-        Colors.green,
-        "Buscando beneficiario...",
-        context);
-    b._varprueba = false;
-
+    var connectivityResult = await (Connectivity().checkConnectivity());
+    dynamic activeInternet = await backup.read("activeInternet", "true");
+    var response = false;
+    if (activeInternet == "false"
+        ? true
+        : (connectivityResult == ConnectivityResult.none)) {
+      return false;
+    }
+    dialogLoadingData(Icons.check_circle, Colors.green,
+        "Buscando beneficiario en Canastas...", contexto);
     help.getDataBeneficiario(numero_documento).then((value) async {
-      print("getDataBeneficiario");
-      print(value);
+      if (value["beneficiario"] != null) {
+        String direccion = value["beneficiario"]["direccion"] == null
+            ? ""
+            : value["beneficiario"]["direccion"].toString();
+        String numero_telefono =
+            value["beneficiario"]["numero_telefono"] == null
+                ? ""
+                : value["beneficiario"]["numero_telefono"].toString();
+        String centro_poblado = value["beneficiario"]["centro_poblado"] == null
+            ? ""
+            : value["beneficiario"]["centro_poblado"].toString();
+        String zona_entrega_id =
+            value["beneficiario"]["zona_entrega_id"] == null
+                ? "0"
+                : value["beneficiario"]["zona_entrega_id"].toString();
 
-      if(value["beneficiario"]!=null){
-        String direccion = value["beneficiario"]["direccion"]==null?"":value["beneficiario"]["direccion"].toString();
-        String numero_telefono = value["beneficiario"]["numero_telefono"]==null?"":value["beneficiario"]["numero_telefono"].toString();
-        String centro_poblado = value["beneficiario"]["centro_poblado"]==null?"":value["beneficiario"]["centro_poblado"].toString();
-
-        b.firstName.updateValue(value["beneficiario"]["primer_apellido"].toString());
-        b.lastName.updateValue(value["beneficiario"]["segundo_apellido"].toString());
+        b.firstName
+            .updateValue(value["beneficiario"]["primer_apellido"].toString());
+        b.lastName
+            .updateValue(value["beneficiario"]["segundo_apellido"].toString());
         b.name.updateValue(value["beneficiario"]["nombre"].toString());
         b.direcction.updateValue(direccion);
         b.telephoneNumber.updateValue(numero_telefono);
         b.populatedCenter.updateValue(centro_poblado);
 
-        b.backup.save("firstName", value["beneficiario"]["primer_apellido"].toString());
-        b.backup.save("lastName", value["beneficiario"]["segundo_apellido"].toString());
+        b.backup.save(
+            "firstName", value["beneficiario"]["primer_apellido"].toString());
+        b.backup.save(
+            "lastName", value["beneficiario"]["segundo_apellido"].toString());
         b.backup.save("name", value["beneficiario"]["nombre"].toString());
         b.backup.save("direcction", direccion);
         b.backup.save("telephoneNumber", numero_telefono);
         b.backup.save("populatedCenter", centro_poblado);
+        b.backup.save("zonaentrega", zona_entrega_id.toString());
 
-        cerrarDialogGlobal(context);
-        responseDialog(Icons.check, Colors.green,
-            "Se han encontrado datos de el beneficiario.", context);
-        if(value["composicion"]!=null){
+        cerrarDialogGlobal(contexto);
+        responseDialog(
+            Icons.check,
+            Colors.green,
+            "Se han encontrado datos de el beneficiario en Canastas.",
+            contexto);
+        focusApeP.requestFocus();
+
+        if (value["composicion"] != null) {
           var obs = {};
           value["composicion"].forEach((element) {
             obs["cf011"] = "0";
@@ -495,45 +582,74 @@ class WizardFormBloc extends FormBloc<String, String> {
             obs["cf1829"] = "0";
             obs["cf3059"] = "0";
             obs["cf60"] = "0";
-            if(element["composicion_familiar_id"]==1){
+            if (element["composicion_familiar_id"] == 1) {
               obs["cf011"] = element["cantidad"].toString();
             }
-            if(element["composicion_familiar_id"]==2){
+            if (element["composicion_familiar_id"] == 2) {
               obs["cf1217"] = element["cantidad"].toString();
             }
-            if(element["composicion_familiar_id"]==3){
+            if (element["composicion_familiar_id"] == 3) {
               obs["cf1829"] = element["cantidad"].toString();
             }
-            if(element["composicion_familiar_id"]==4){
+            if (element["composicion_familiar_id"] == 4) {
               obs["cf3059"] = element["cantidad"].toString();
             }
-            if(element["composicion_familiar_id"]==5){
+            if (element["composicion_familiar_id"] == 5) {
               obs["cf60"] = element["cantidad"].toString();
             }
           });
-          b.backup.save("compositions",  json.encode(obs));
+          b.backup.save("compositions", json.encode(obs));
         }
-      }else{
-        cerrarDialogGlobal(context);
-        responseDialog(Icons.error, Colors.red,
-            "No se ha encontrado datos.", context);
-        b.firstName.updateValue("");
-        b.lastName.updateValue("");
-        b.name.updateValue("");
-        b.direcction.updateValue("");
-        b.telephoneNumber.updateValue("");
-        b.populatedCenter.updateValue("");
-
-        b.backup.save("firstName", "");
-        b.backup.save("lastName", "");
-        b.backup.save("name", "");
-        b.backup.save("direcction", "");
-        b.backup.save("telephoneNumber", "");
-        b.backup.save("populatedCenter", "");
+      } else {
+        cerrarDialogGlobal(contexto);
+        responseDialog(
+            Icons.error,
+            Colors.red,
+            "No se han encontrado datos de el beneficiario.\nRealice el registro manual.",
+            contexto);
+            focusApeP.requestFocus();
       }
       b._varprueba = true;
+      response = true;
     });
+  }
+
+  Future<bool> findDataFromService(
+      WizardFormBloc b, String numero_documento) async {
+    Helper help = new Helper();
+    var connectivityResult = await (Connectivity().checkConnectivity());
+    dynamic activeInternet = await backup.read("activeInternet", "true");
+    var response = false;
+    if (activeInternet == "false"
+        ? true
+        : (connectivityResult == ConnectivityResult.none)) {
+      return false;
+    }
+    dialogLoadingData(Icons.check_circle, Colors.green,
+        "Buscando beneficiario en la Reniec...", contexto);
+    b._varprueba = false;
+    help.getDataWsReniec(numero_documento).then((value) async {
+      cerrarDialogGlobal(contexto);
+      if (value["coResultado"] == "0000" || value["coResultado"] == "0001") {
+        responseDialog(
+            Icons.check,
+            Colors.green,
+            "Se han encontrado datos de el beneficiario en la Reniec.",
+            contexto);
+        b.firstName.updateValue(value["APPAT"].toString());
+        b.lastName.updateValue(value["APMAT"].toString());
+        b.name.updateValue(value["NOMBRES"].toString());
+        b.backup.save("firstName", value["APPAT"].toString());
+        b.backup.save("lastName", value["APMAT"].toString());
+        b.backup.save("name", value["NOMBRES"].toString());
+        focusApeP.requestFocus();
+      } else {
+        findDataFromServiceCanasta(b, numero_documento);
+      }
+    });
+
     //b.firstName.updateValue(await b.backup.read("firstName", ""));
+    return response;
   }
 }
 
@@ -547,42 +663,87 @@ class WizardForm extends StatefulWidget {
 
 class _WizardFormState extends State<WizardForm> {
   var _tipodocumento = 1;
+  var _zonaentrega = 0;
   var cargarInit = false;
   var cargarInit2 = false;
 
   @override
   void initState() {
     super.initState();
-     _readBackupSelect2();
+    focusApeP = FocusNode();
+    focusNumDoc = FocusNode();
+    _readBackupSelect2();
+    _readBackupZonaEntrega();
   }
-
+ 
   void _readBackupSelect2() {
     readBackupSelect2().then((onValue) {
-      print("----bbbbbbbbbb-----");
       setState(() {
         tiposDocumento = onValue;
       });
     });
   }
 
+  void _readBackupZonaEntrega() {
+    readBackupZonaEntrega().then((onValue) {
+      setState(() {
+        zonasEntregaG = onValue;
+      });
+    });
+  }
+
+  Future readBackupZonaEntrega() async {
+    final prefs = await SharedPreferences.getInstance();
+    var connectivityResult = await (Connectivity().checkConnectivity());
+    var docs;
+    //await storage.open();
+    dynamic activeInternet = await backup.read("activeInternet", "true");
+    if (activeInternet == "true"
+        ? (connectivityResult != ConnectivityResult.none)
+        : false) {
+      Helper helper = new Helper();
+      docs = await helper.getZonasEntrega(prefs.getInt('ubigeo_id').toString());
+      List list = docs;
+      if (docs != null && docs.length > 0) {
+        list.insert(0, {"id": 0, "nombre": "Zona de entrega"});
+      }
+      return list;
+    } else {
+      //await storage.open();
+      docs = await storage.getAll("zonaentrega", (var maps, int index) {
+        return maps;
+      });
+      List list_ = [];
+
+      if (docs != null && docs.length > 0) {
+        for (int i = 0; i < docs.length; i++) {
+          if (i == 0) {
+            list_.add({'id': 0, 'nombre': "Zona de entrega"});
+          }
+          list_.add(docs[i]);
+        }
+      }
+      return json.decode(json.encode(list_));
+    }
+  }
+
   Future readBackupSelect2() async {
     var connectivityResult = await (Connectivity().checkConnectivity());
     var docs;
     //await storage.open();
-    print("----ccccccccc-----");
-    print( connectivityResult != ConnectivityResult.none);
-    if (connectivityResult != ConnectivityResult.none) {
+    dynamic activeInternet = await backup.read("activeInternet", "true");
+    if (activeInternet == "true"
+        ? (connectivityResult != ConnectivityResult.none)
+        : false) {
       Helper helper = new Helper();
       docs = await helper.getDocuments();
       return docs;
     } else {
-      print("----data storage wdawdawd sin internet-----");
       //await storage.open();
       docs = await storage.getAll("tipodocumento", (var maps, int index) {
         return maps;
       });
-      print("----data storage tipodocumento sin internet-----");
-      print(json.decode(json.encode(docs)));
+
       return json.decode(json.encode(docs));
     }
   }
@@ -590,14 +751,12 @@ class _WizardFormState extends State<WizardForm> {
   Future<String> codigoDniGenerar(
       dynamic numero_documento, WizardFormBloc wizardFormBloc) async {
     var tipoDoc = await wizardFormBloc.backup.read("select1", "");
-    if (tipoDoc == "2") {
+    if (tipoDoc != "1") {
       setState(() {
         codigoDni = "";
       });
       return "";
     }
-    print("codigoGenerer");
-    print(tipoDoc);
     numero_documento = await wizardFormBloc.backup.read("documentNumber", "");
     if (numero_documento != "" && numero_documento != null) {
       var response = "";
@@ -652,9 +811,6 @@ class _WizardFormState extends State<WizardForm> {
               resizeToAvoidBottomInset: false,
               body: SafeArea(
                 child: FormBlocListener<WizardFormBloc, String, String>(
-                  /*onLoading: (context,state){
-                    print("onLoadingonLoadingonLoadingonLoadingonLoading");
-                  },*/
                   onSubmitting: (context, state) {
                     LoadingDialog.show(context);
                   },
@@ -671,6 +827,8 @@ class _WizardFormState extends State<WizardForm> {
                             builder: (_) =>
                                 MainApp(title: APP_TITLE, user: widget.user)));
                       });
+                    } else {
+                      //cerrarDialogGlobal(context);
                     }
                   },
                   onFailure: (context, state) {
@@ -685,7 +843,9 @@ class _WizardFormState extends State<WizardForm> {
                       return Row(
                         children: <Widget>[
                           RaisedButton(
-                            onPressed: onStepContinue,
+                            onPressed: () {
+                              onStepContinue();
+                            },
                             color: Colors.red,
                             textColor: Colors.white,
                             child: const Text('Continuar'),
@@ -719,10 +879,10 @@ class _WizardFormState extends State<WizardForm> {
   FormBlocStep _generalStep(WizardFormBloc wizardFormBloc) {
     if (!cargarInit2) {
       cargarInit2 = true;
-      setState(() {
-        isPasaporte = wizardFormBloc.select1 == "3";
-        sinDNI = wizardFormBloc.select1 == "4";
-      });
+      //setState(() {
+      isPasaporte = wizardFormBloc.select1 == "3";
+      sinDNI = wizardFormBloc.select1 == "4";
+      //});
       codigoDniGenerar(wizardFormBloc.documentNumber, wizardFormBloc);
     }
     return FormBlocStep(
@@ -742,19 +902,17 @@ class _WizardFormState extends State<WizardForm> {
           FutureBuilder(
             future: readBackupSelect1(wizardFormBloc),
             builder: (BuildContext context, AsyncSnapshot snapshot) {
-              print("Tipo documento");
               if (snapshot.data != null) {
                 return DropDownField(
                   contentPadding: const EdgeInsets.only(bottom: 30.0),
                   titleText: 'Tipo documento',
                   value: int.parse(snapshot.data),
-
                   onChanged: (value) {
-                    if (value == 1 || value==3) {
+                    if (value == 1) {
                       setState(() {
                         _inputType = TextInputType.number;
                       });
-                      if(value==1)codigoDniGenerar(wizardFormBloc.documentNumber, wizardFormBloc);
+                      codigoDniGenerar(wizardFormBloc.documentNumber, wizardFormBloc);
                     } else {
                       setState(() {
                         _inputType = TextInputType.text;
@@ -762,14 +920,30 @@ class _WizardFormState extends State<WizardForm> {
                       });
                     }
                     _tipodocumento = value;
-                    print("valueisPasaporte");
-                    print(value);
                     setState(() {
                       isPasaporte = value == 3;
                       sinDNI = value == 4;
                     });
+                    wizardFormBloc.backup.save("firstName", null);
+                    wizardFormBloc.backup.save("lastName", null);
+                    wizardFormBloc.backup.save("telephoneNumber", null);
+                    wizardFormBloc.backup.save("name", null);
+                    wizardFormBloc.backup.save("documentnumber", null);
+                    wizardFormBloc.firstName.updateValue(null);
+                    wizardFormBloc.lastName.updateValue(null);
+                    wizardFormBloc.telephoneNumber.updateValue(null);
+                    wizardFormBloc.name.updateValue(null);
+                    wizardFormBloc.documentNumber.updateValue(null);
+
                     wizardFormBloc.backup.save("select1", value.toString());
-                    updateValueDocNumber(wizardFormBloc);
+                    focusNumDoc.requestFocus();
+
+                     /*if (value == 4) {
+                      wizardFormBloc.backup.save("documentnumber", null);
+                      wizardFormBloc.documentNumber.updateValue(null);
+                    }else {
+                      updateValueDocNumber(wizardFormBloc);
+                    }*/
                     //wizardFormBloc.backup.save("documentNumber", "awdw");
                   },
                   dataSource: tiposDocumento,
@@ -786,31 +960,49 @@ class _WizardFormState extends State<WizardForm> {
             builder: (BuildContext context, AsyncSnapshot snapshot) {
               if (snapshot.data != null) {
                 return TextFieldBlocBuilder(
-
                   textFieldBloc: wizardFormBloc.documentNumber,
+                  isEnabled:
+                      !cargarInit ? int.parse(snapshot.data) != 4 : !sinDNI,
                   onTap: () {
                     setState(() {
                       cargarInit = true;
                     });
-                    if (int.parse(snapshot.data) == 2) {
+                    if (int.parse(snapshot.data) != 1  ) {
                       setState(() {
                         _inputType = TextInputType.text;
                       });
-                    } else{
+                    } else {
                       setState(() {
                         _inputType = TextInputType.number;
                       });
                     }
                   },
-
-                  keyboardType: (int.parse(snapshot.data) == 2
-                      ? (!cargarInit ? TextInputType.text : _inputType)
-                      : (!cargarInit ? TextInputType.number : _inputType)),
+                  keyboardType: (int.parse(snapshot.data) !=1
+                      ? (!cargarInit ? TextInputType.text : _inputType)  : _inputType),
                   onChanged: (val) {
-                    if (val.length == 8 && !isPasaporte && _inputType == TextInputType.number) {
+                    if ( isNumeric(val) && val.length == 8 &&
+                        !isPasaporte &&
+                        !sinDNI &&
+                        _inputType == TextInputType.number) {
                       codigoDniGenerar(val, wizardFormBloc);
-                      wizardFormBloc.findDataFromService(wizardFormBloc,val);
-                    }else{
+                      wizardFormBloc
+                          .findDataFromService(wizardFormBloc, val)
+                          .then((value) async {
+                        if (value) {
+                          var ze = await wizardFormBloc.backup
+                              .read("zonaentrega", 0);
+                          setState(() {
+                            _zonaentrega = int.parse(ze);
+                          });
+                        } else {
+                          var ze = await wizardFormBloc.backup
+                              .read("zonaentrega", 0);
+                          setState(() {
+                            _zonaentrega = int.parse(ze);
+                          });
+                        }
+                      });
+                    } else {
                       setState(() {
                         codigoDni = "";
                       });
@@ -833,6 +1025,7 @@ class _WizardFormState extends State<WizardForm> {
             onChanged: (val) {
               wizardFormBloc.backup.save("firstName", val);
             },
+            focusNode: focusApeP,
             keyboardType: TextInputType.text,
             decoration: InputDecoration(
                 labelText: 'Apellido paterno',
@@ -874,7 +1067,30 @@ class _WizardFormState extends State<WizardForm> {
       title: Text('Observaciones'),
       content: Column(
         children: <Widget>[
-
+          FutureBuilder(
+            future: readBackupSelectZonaE(wizardFormBloc),
+            builder: (BuildContext context, AsyncSnapshot snapshot) {
+              if (snapshot.data != null) {
+                return DropDownField(
+                  contentPadding: const EdgeInsets.only(bottom: 30.0),
+                  titleText: 'Zona de entrega',
+                  value: int.parse(snapshot.data) ?? _zonaentrega,
+                  onChanged: (value) {
+                    wizardFormBloc.backup.save("zonaentrega", value.toString());
+                    setState(() {
+                      _zonaentrega = value;
+                    });
+                  },
+                  hintText: "Zona de entrega",
+                  dataSource: zonasEntregaG,
+                  textField: 'nombre',
+                  valueField: 'id',
+                );
+              } else {
+                return CircularProgressIndicator();
+              }
+            },
+          ),
           DropdownFieldBlocBuilder(
             selectFieldBloc: wizardFormBloc.tipovivienda,
             decoration: InputDecoration(
@@ -906,14 +1122,15 @@ class _WizardFormState extends State<WizardForm> {
               prefixIcon: Icon(Icons.location_city),
             ),
           ),
-          wizardFormBloc._varprueba ? CFDialog((chips, args) {
-            wizardFormBloc.compositions = chips;
-            if (args != null) {
-              print("CFDialog");
-              print(args);
-              wizardFormBloc.backup.save("compositions", json.encode(args));
-            }
-          }) : SizedBox(height: 10),
+          wizardFormBloc._varprueba
+              ? CFDialog((chips, args) {
+                  wizardFormBloc.compositions = chips;
+                  if (args != null) {
+                    wizardFormBloc.backup
+                        .save("compositions", json.encode(args));
+                  }
+                })
+              : SizedBox(height: 10),
           TextFieldBlocBuilder(
             textFieldBloc: wizardFormBloc.description,
             onChanged: (val) {
@@ -927,6 +1144,49 @@ class _WizardFormState extends State<WizardForm> {
               prefixIcon: Icon(Icons.comment),
             ),
           ),
+          Container(
+            width: 250,
+            height: 50,
+            child:  RaisedButton(
+            
+            onPressed: () {
+              Navigator.pushNamed(context, '/familia');
+            },
+            color: Colors.white,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(2, 0, 2, 0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  Text(
+                    'FAMILIAR RECEPTOR',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.red,
+                      
+                    ),
+                    
+                  ),
+                  Icon(
+                    Icons.person_add,
+                    color: Colors.red,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          ),
+          SizedBox(height: 20,),
+          /*RaisedButton(
+          
+          color: Colors.red,
+          textColor: Colors.white,
+            onPressed: () {
+              Navigator.pushNamed(context, '/familia');
+            },
+          ),*/
+
           DropdownFieldBlocBuilder(
             selectFieldBloc: wizardFormBloc.stateField,
             decoration: InputDecoration(
@@ -955,13 +1215,15 @@ FormBlocStep _atachmentStep(
         wizardFormBloc.backup.save("beneficiarioPath", bePath);
       }));
 }
-void cerrarDialogGlobal(BuildContext context){
+
+void cerrarDialogGlobal(BuildContext context) {
   Navigator.of(context).pop();
 }
+
 void dialogLoadingData(
     IconData icon, Color color, String msj, BuildContext context) {
   showDialog(
-    barrierDismissible: false,
+      barrierDismissible: false,
       context: context,
       builder: (BuildContext bc) {
         return Dialog(
@@ -976,6 +1238,40 @@ void dialogLoadingData(
                   Text(msj, style: TextStyle(fontSize: 14)),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
+                  )
+                ],
+              )),
+        );
+      });
+}
+
+void responseDialogSaved(IconData icon, Color color, String msj,
+    BuildContext context, dynamic callback) {
+  showDialog(
+      barrierDismissible: false,
+      context: context,
+      builder: (BuildContext bc) {
+        return Dialog(
+          child: Container(
+              padding: EdgeInsets.fromLTRB(10, 10, 10, 0),
+              height: 160,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: <Widget>[
+                  Icon(icon, size: 60, color: color),
+                  Text(msj, style: TextStyle(fontSize: 14)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: <Widget>[
+                      FlatButton(
+                        child: Text("Aceptar"),
+                        onPressed: () {
+                          callback();
+                          Navigator.of(context).pop();
+                        },
+                      )
+                    ],
                   )
                 ],
               )),
@@ -1049,6 +1345,10 @@ Future<bool> confirmSave(BuildContext context, String msj) async {
               )),
         );
       });
+}
+
+Future readBackupSelectZonaE(WizardFormBloc b) async {
+  return await b.backup.read("zonaentrega", "1");
 }
 
 Future readBackupSelect1(WizardFormBloc b) async {

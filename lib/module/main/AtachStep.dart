@@ -1,9 +1,12 @@
 import 'package:estado/module/sotorage/FormBackup.dart';
+import 'package:estado/prueba.dart';
 import 'package:flutter/material.dart';
 import 'package:estado/module/main/CameraController.dart';
 import 'package:camera/camera.dart';
 import 'package:estado/module/main/DisplayPicture.dart';
 import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as pathDart;
 
 class AtachStep extends StatefulWidget {
   final Function documentCallback;
@@ -17,31 +20,97 @@ class AtachStep extends StatefulWidget {
 class AtachStepState extends State<AtachStep> {
   String documentPath;
   String beneficiarioPath;
-  FormBackup backup=new FormBackup();
+
+  PickedFile _imageFile;
+  dynamic _pickImageError;
+  String _retrieveDataError;
+  final ImagePicker _picker = ImagePicker();
+  final TextEditingController maxWidthController = TextEditingController();
+  final TextEditingController maxHeightController = TextEditingController();
+  final TextEditingController qualityController = TextEditingController();
+
+  FormBackup backup = new FormBackup();
   @override
   void initState() {
-
     super.initState();
     init();
   }
-   void init() async {
+
+  void init() async {
     await backup.open();
-     var d = await backup.read("documentPath", null);
+    var d = await backup.read("documentPath", null);
     var b = await backup.read("beneficiarioPath", null);
     setState(() {
-      documentPath=d;
-      beneficiarioPath=b;
+      documentPath = d;
+      beneficiarioPath = b;
     });
-     widget.documentCallback(d);
-       widget.beneficiarioCallback(b);
+    widget.documentCallback(d);
+    widget.beneficiarioCallback(b);
   }
-  void atachPicture(BuildContext context, String title, String pref) async {
+
+  void atachPicture(
+      BuildContext context, String title, String pref, String docpath) async {
+    print("docpath------------");
+    print(docpath);
     final cameras = await availableCameras();
     final firstCamera = cameras.first;
     Navigator.push(
       context,
       MaterialPageRoute(
-          builder: (context) => TakePictureScreen(
+          builder: (context) => MyAppPrueba(
+              title: title,
+              pref: pref,
+              docpath: docpath,
+              callback: (ImageSource source, {BuildContext context}) async {
+                await _displayPickImageDialog(context,
+                    (double maxWidth, double maxHeight, int quality) async {
+                  try {
+                    final pickedFile = await _picker.getImage(
+                      source: source,
+                      maxWidth: 480,
+                      maxHeight: 480,
+                      //imageQuality: quality,
+                    );
+                    String name = pref + DateTime.now().toString() + '.jpg';
+                    String dirBefore = pathDart.dirname(pickedFile.path);
+                    final newPath = pathDart.join(dirBefore, name);
+                    File file = await File(pickedFile.path).copy(newPath);
+
+                    /*if (file.existsSync()) {
+                      await file.delete();
+                    }*/
+                    setState(() {
+                      //_imageFile = pickedFile;
+                      if (pref == "FIRMA_PADRON_DNI_") {
+                        documentPath = newPath;
+                        if (widget.documentCallback != null) {
+                          print("qqqqqqqqqq");
+                          widget.documentCallback(newPath);
+                        }
+                      } else {
+                        beneficiarioPath = newPath;
+                        if (widget.beneficiarioCallback != null) {
+                          widget.beneficiarioCallback(newPath);
+                        }
+                      }
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => DisplayPictureScreen(
+                            imagePath: newPath,
+                            title: title,
+                          ),
+                        ),
+                      );
+                    });
+                  } catch (e) {
+                    setState(() {
+                      _pickImageError = e;
+                    });
+                  }
+                });
+              })
+          /*builder: (context) => TakePictureScreen(
                 camera: firstCamera,
                 title: title,
                 pref: pref,
@@ -60,11 +129,14 @@ class AtachStepState extends State<AtachStep> {
                     }
                   });
                 },
-              )),
+              )*/
+          ),
     );
   }
 
   Widget buildImagePreview(String path) {
+    print("path");
+    print(path);
     return path == null
         ? Icon(
             Icons.image,
@@ -91,7 +163,7 @@ class AtachStepState extends State<AtachStep> {
                         context,
                         MaterialPageRoute(
                             builder: (context) => DisplayPicture(
-                                  title: "DNI+PLANILLA",
+                                  title: "Evidencia 1",
                                   imagePath: documentPath,
                                 )));
                   }
@@ -101,7 +173,7 @@ class AtachStepState extends State<AtachStep> {
                   children: <Widget>[
                     const ListTile(
                       leading: Icon(Icons.credit_card),
-                      title: Text('DNI+PLANILLA'),
+                      title: Text('Evidencia 1'),
                     ),
                     buildImagePreview(documentPath),
                     ButtonBar(
@@ -121,9 +193,9 @@ class AtachStepState extends State<AtachStep> {
                         FlatButton(
                           child: const Text('Foto'),
                           onPressed: () {
-                            documentPath = null;
-                            atachPicture(
-                                context, "DNI+PLANILLA", "FIRMA_PADRON_DNI_");
+                            //documentPath = null;
+                            atachPicture(context, "Evidencia 1",
+                                "FIRMA_PADRON_DNI_", documentPath);
                           },
                         ),
                       ],
@@ -139,7 +211,7 @@ class AtachStepState extends State<AtachStep> {
                         context,
                         MaterialPageRoute(
                             builder: (context) => DisplayPicture(
-                                title: "Beneficiario",
+                                title: "Evidencia 2",
                                 imagePath: beneficiarioPath)));
                   }
                 },
@@ -148,7 +220,7 @@ class AtachStepState extends State<AtachStep> {
                   children: <Widget>[
                     const ListTile(
                       leading: Icon(Icons.people),
-                      title: Text('Beneficiario'),
+                      title: Text('Evidencia 2'),
                     ),
                     buildImagePreview(beneficiarioPath),
                     ButtonBar(
@@ -168,9 +240,9 @@ class AtachStepState extends State<AtachStep> {
                         FlatButton(
                           child: const Text('Foto'),
                           onPressed: () {
-                            beneficiarioPath = null;
-                            atachPicture(
-                                context, "Beneficiario", "BENEFICIARIO_");
+                            //beneficiarioPath = null;
+                            atachPicture(context, "Evidencia 2",
+                                "BENEFICIARIO_", beneficiarioPath);
                           },
                         ),
                       ],
@@ -178,6 +250,52 @@ class AtachStepState extends State<AtachStep> {
                   ],
                 ))),
       ],
+    );
+  }
+
+  Future<void> _displayPickImageDialog(
+      BuildContext context, OnPickImageCallback onPick) async {
+    double width = maxWidthController.text.isNotEmpty
+        ? double.parse(maxWidthController.text)
+        : null;
+    double height = maxHeightController.text.isNotEmpty
+        ? double.parse(maxHeightController.text)
+        : null;
+    int quality = qualityController.text.isNotEmpty
+        ? int.parse(qualityController.text)
+        : null;
+    onPick(width, height, quality);
+    return;
+  }
+}
+
+typedef void OnPickImageCallback(
+    double maxWidth, double maxHeight, int quality);
+
+class DisplayPictureScreen extends StatelessWidget {
+  final String imagePath;
+  final String title;
+  const DisplayPictureScreen({Key key, this.imagePath, this.title})
+      : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(title),
+        actions: <Widget>[
+          FlatButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            textColor: Colors.white,
+            child: Text('ADJUNTAR'),
+          ),
+        ],
+      ),
+      // The image is stored as a file on the device. Use the `Image.file`
+      // constructor with the given path to display the image.
+      body: Image.file(File(imagePath)),
     );
   }
 }

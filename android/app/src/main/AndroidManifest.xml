@@ -6,9 +6,11 @@
          additional functionality it is fine to subclass or reimplement
          FlutterApplication and put your custom class here. -->
          <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
+        android:allowBackup="false"
         android:name="io.flutter.app.FlutterApplication"
-        android:label="CanastasPerú"
+        android:label="CanastasColonias"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"

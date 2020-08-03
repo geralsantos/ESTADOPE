@@ -3,6 +3,11 @@ final int usuarioId;
 final int ubigeoId;
 final int tipoCapturaId;
 final int tipoDocumentoId;
+final String frNumeroDocumento;
+final String frApellidoPaterno;
+final String frApellidoMaterno;
+final String frNombres;
+final int frParentescoId;
 final int estadoEntregaId;
 final String numeroDocumento;
 final String primerApellido;
@@ -17,12 +22,18 @@ final String documentoPath;
 final String beneficiarioPath;
 final String numeroTelefono;
 final int tipoViviendaId;
+final int zonaEntregaId;
 
  Donation(
    this.usuarioId,
    this.ubigeoId,
    this.tipoCapturaId,
    this.tipoDocumentoId,
+   this.frNumeroDocumento,
+   this.frApellidoPaterno,
+   this.frApellidoMaterno,
+   this.frNombres,
+   this.frParentescoId,
    this.estadoEntregaId,
    this.numeroDocumento,
    this.primerApellido,
@@ -34,7 +45,7 @@ final int tipoViviendaId;
    this.observaciones,
    this.georeferencia,
    this.documentoPath,
-   this.beneficiarioPath,this.numeroTelefono,this.tipoViviendaId
+   this.beneficiarioPath,this.numeroTelefono,this.tipoViviendaId,this.zonaEntregaId
    );
 Map<String,dynamic> toMap(){
   return {
@@ -42,6 +53,11 @@ Map<String,dynamic> toMap(){
 "ubigeo_id":ubigeoId,
 "tipo_captura_id":tipoCapturaId,
 "tipo_documento_id":tipoDocumentoId,
+"fr_numero_documento":frNumeroDocumento,
+"fr_apellido_paterno":frApellidoPaterno,
+"fr_apellido_materno":frApellidoMaterno,
+"fr_nombres":frNombres,
+"fr_parentesco_id":frParentescoId,
 "estado_entrega_id":estadoEntregaId,
 "numero_documento":numeroDocumento,
 "primer_apellido":primerApellido,
@@ -55,7 +71,8 @@ Map<String,dynamic> toMap(){
 "documento_path":documentoPath,
 "beneficiario_path":beneficiarioPath,
 "numero_telefono":numeroTelefono,
-"tipo_vivienda_id":tipoViviendaId,
+    "tipo_vivienda_id":tipoViviendaId,
+    "zona_entrega_id":zonaEntregaId,
 
   };
 }

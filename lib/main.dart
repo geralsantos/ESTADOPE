@@ -1,4 +1,5 @@
 import 'package:estado/module/login/Intro.dart';
+import 'package:estado/module/main/FamiliaReceptora.dart';
 import 'package:estado/service/User.dart';
 import 'package:flutter/material.dart';
 import './config.dart';
@@ -48,7 +49,9 @@ class MyApp extends StatelessWidget {
       routes: <String, WidgetBuilder>{
         '/login': (BuildContext context) => new LoginForm(),
         '/app': (BuildContext context) =>
-            new MainApp(title: APP_TITLE, user: currentUser)
+            new MainApp(title: APP_TITLE, user: currentUser),
+        '/familia': (BuildContext context) =>
+            new FamiliaReceptoraState(title: "Familiar Receptor")
       },
     );
   }
@@ -104,6 +107,8 @@ class _MyHomePageState extends State<MyHomePage> {
           ],
         ),
       ),
-    ));
+    ),
+
+    );
   }
 }

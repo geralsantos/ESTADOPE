@@ -1,10 +1,14 @@
+import 'package:camera/camera.dart';
+import 'package:estado/module/sotorage/FormBackup.dart';
 import 'package:flutter/material.dart';
 import 'package:estado/service/User.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:estado/module/main/Home.dart';
 
 import 'LocalDonations.dart';
-
+FormBackup backup = new FormBackup();
+Icon iconInternet =  Icon(Icons.cloud);
+String estadoInternet = "Internet activo";
 class MainApp extends StatefulWidget {
   MainApp({Key key, this.title, this.user}) : super(key: key);
   final String title;
@@ -14,6 +18,45 @@ class MainApp extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MainApp> {
+  Future readStatusInternet () async{
+    await backup.open();
+    dynamic activeInternet =await backup.read("activeInternet", "true");
+    print("readStatusInternet");
+    print(activeInternet);
+    if(activeInternet=="true"){
+      setState(() {
+        iconInternet = Icon(Icons.cloud);
+        estadoInternet = "Internet Activo";
+      });
+    }else{
+      setState(() {
+        iconInternet = Icon(Icons.cloud_off);
+        estadoInternet = "Internet Inactivo";
+
+      });
+    }
+  }
+  Future internetStatus() async{
+    await backup.open();
+
+    dynamic activeInternet =await backup.read("activeInternet", "true");
+    print("activeInternet");
+    print(activeInternet);
+    backup.save("activeInternet", activeInternet=="true"?"false":"true");
+    if(activeInternet=="true"){
+      setState(() {
+        iconInternet = Icon(Icons.cloud_off);
+        estadoInternet = "Internet Inactivo";
+
+      });
+    }else{
+      setState(() {
+        iconInternet = Icon(Icons.cloud);
+        estadoInternet = "Internet Activo";
+
+      });
+    }
+  }
   String user = "", name = "";
   int id = -1, ubigeId = -1, _selectedDrawerIndex = 1;
   void _exitApp() async {
@@ -86,7 +129,9 @@ class _MyHomePageState extends State<MainApp> {
       name = widget.user.getName();
       id = widget.user.getId();
       ubigeId = widget.user.getubigeoId();
+      readStatusInternet();
     }
+
   }
 
   @override
@@ -94,6 +139,16 @@ class _MyHomePageState extends State<MainApp> {
     return Scaffold(
         appBar: AppBar(
           title: Text(widget.title),
+          actions: <Widget>[
+           
+            IconButton(
+              icon: iconInternet,
+              tooltip: estadoInternet,
+              onPressed: () {
+                internetStatus();
+              },
+            )
+          ],
         ),
         drawer: Drawer(
           child: ListView(
@@ -142,6 +197,6 @@ class _MyHomePageState extends State<MainApp> {
             ],
           ),
         ),
-        body: getCurrentView());
+        body: getCurrentView(), );
   }
 }

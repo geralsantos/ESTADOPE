@@ -1,9 +1,13 @@
 import 'dart:io';
 
 import 'package:connectivity/connectivity.dart';
+import 'package:estado/module/sotorage/FormBackup.dart';
 import 'package:estado/service/Helper.dart';
 import 'package:flutter/material.dart';
 import 'package:estado/module/main/LoadingDialog.dart';
+
+FormBackup backup = new FormBackup();
+
 class LocalDonations extends StatefulWidget {
   @override
   LocalDonationsState createState() {
@@ -55,8 +59,10 @@ class LocalDonationsState extends State<LocalDonations> {
   }
 
   void upload() async {
+    await backup.open();
     var connectivityResult = await (Connectivity().checkConnectivity());
-    if (connectivityResult == ConnectivityResult.none) {
+    dynamic activeInternet =await backup.read("activeInternet", "true");
+    if (activeInternet =="true"? (connectivityResult == ConnectivityResult.none) : true) {
       messageDialog(Icons.cloud_off, Colors.red, "¡Sin conexión!",false);
     }else{
   if(hasData){

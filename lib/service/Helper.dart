@@ -3,18 +3,17 @@ import 'dart:io';
 import 'package:connectivity/connectivity.dart';
 import 'package:estado/config.dart';
 import 'package:estado/module/entity/Donation.dart';
+import 'package:estado/module/sotorage/FormBackup.dart';
 import 'package:estado/module/sotorage/Storage.dart';
+import 'package:estado/module/sotorage/Storage2.dart';
 import 'package:estado/service/Composition.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
 import 'dart:convert';
-
 class Helper {
   Future getDocuments() async {
     try {
       var request = await http.get(ROOT + '/registros/tipodocumento/ver/');
-      print("json.decode(request.body)");
-      print(request.body);
       return json.decode(request.body);
     } catch (e) {
       print(e);
@@ -22,7 +21,16 @@ class Helper {
 
     return null;
   }
+  Future getParentesco() async {
+    try {
+      var request = await http.get(ROOT + '/registros/parentesco/ver/');
+      return json.decode(request.body);
+    } catch (e) {
+      print(e);
+    }
 
+    return null;
+  }
   Future<List> getCaptureTypes(String id) async {
     try {
       var request = await http.get(ROOT + '/registros/tipocaptura/ver/' + id);
@@ -32,7 +40,15 @@ class Helper {
     }
     return null;
   }
-
+  Future<List> getZonasEntrega(String id) async {
+    try {
+      var request = await http.get(ROOT + '/registros/zonasentrega/' + id);
+      return json.decode(request.body);
+    } catch (e) {
+      print(e);
+    }
+    return null;
+  }
   Future<List> getStates() async {
     try {
       var request = await http.get(ROOT + '/registros/estadoentrega/ver/');
@@ -54,7 +70,7 @@ class Helper {
   }
 
   Future<List<dynamic>> getDonations() async {
-    Storage s = new Storage();
+    Storage2 s = new Storage2();
     await s.open();
     return await s.getAll("donacion", null);
   }
@@ -71,16 +87,30 @@ class Helper {
     }
     return null;
   }
+Future getDataWsReniec(String numero_documento) async {
+    try {
+      var request = await http.post(ROOT + '/registros/consultabeneficiarioWs/',
+      body: {
+        "DNI": numero_documento.trim(),
+        "KEY": KEY
+      });
+      return json.decode(request.body);
+    } catch (e) {
+      print(e);
+    }
 
+    return null;
+  }
   Future<bool> upload() async {
     try {
-      Storage s = new Storage();
+      Storage2 s = new Storage2();
       await s.open();
       var rows = await s.getAll("donacion", null);
       for (var row in rows) {
         var args = {
           "tipo_captura_id": row['tipo_captura_id'],
           "tipo_documento_id": row['tipo_documento_id'],
+         
           "estado_entrega_id": row['estado_entrega_id'],
           "numero_documento": row['numero_documento'],
           "primer_apellido": Uri.decodeComponent(row['primer_apellido']),
@@ -91,6 +121,7 @@ class Helper {
           "observaciones": Uri.decodeComponent(row['observaciones']),
           "numero_telefono": row['numero_telefono'],
           "tipo_vivienda_id": row['tipo_vivienda_id'],
+          "zona_entrega_id": row['zona_entrega_id'],
         };
         print("args locale");
         print(args);
@@ -100,7 +131,7 @@ class Helper {
           compositions
               .add(new Composition(c['nombre'], c['cantidad'], c['id']));
         }
-        bool uploaded = await save(
+        dynamic uploaded = await save(
             args,
             row['documento_path'],
             row['beneficiario_path'],
@@ -108,9 +139,21 @@ class Helper {
             row['usuario_id'],
             row['georeferencia'],
             compositions,
-            row['tipo_documento_id']);
-        if (uploaded) {
-          await s.destroy("donacion", row['id']);
+            row['tipo_documento_id'],
+            row['fr_numero_documento'],
+            row['fr_apellido_paterno'],
+            row['fr_apellido_materno'],
+            row['fr_nombres'],
+            row['fr_parentesco_id'],
+            );
+        print("uploaded");
+        print(uploaded);
+        if (uploaded!=null){
+          if(uploaded!=false){
+            print("destroy");
+            print(row['id']);
+            await s.destroy("donacion", row['id']);
+          }
         }
       }
       return true;
@@ -120,8 +163,8 @@ class Helper {
     return false;
   }
 
-  Future<bool> localSave(args, String docPath, String bePath, int ubigeo,
-      int user, String geoLocation, compositions, int tipodocumento) async {
+  Future<dynamic> localSave(args, String docPath, String bePath, int ubigeo,
+      int user, String geoLocation, compositions, int tipodocumento,String frnumero_documento, String frapellido_paterno, String frapellido_materno, String frnombres,int frparentesco) async {
     try {
       List j = new List();
       for (var c in compositions) {
@@ -133,8 +176,13 @@ class Helper {
           ubigeo,
           args['tipo_captura_id'],
           tipodocumento,
+          frnumero_documento,
+          frapellido_paterno,
+          frapellido_materno,
+          frnombres,
+          frparentesco,
           args['estado_entrega_id'],
-          args['numero_documento'],
+          args['numero_documento']==null?"":args['numero_documento'],
           Uri.encodeComponent(args['primer_apellido']),
           Uri.encodeComponent(args['segundo_apellido']),
           Uri.encodeComponent(args['nombre']),
@@ -146,8 +194,10 @@ class Helper {
           docPath,
           bePath,
           args['numero_telefono'],
-          args['tipo_vivienda_id']);
-      Storage s = new Storage();
+          args['tipo_vivienda_id'],
+          args['zona_entrega_id']
+      );
+      Storage2 s = new Storage2();
       await s.open();
       await s.insert("donacion", donation);
       return true;
@@ -157,19 +207,32 @@ class Helper {
     return false;
   }
 
-  Future<bool> save(args, String docPath, String bePath, int ubigeo, int user,
-      String geoLocation, compositions, var tipodocumento) async {
+  Future<dynamic> save(args, String docPath, String bePath, int ubigeo, int user,
+      String geoLocation, compositions, var tipodocumento,String frnumero_documento, String frapellido_paterno, String frapellido_materno, String frnombres,var frparentesco) async {
+    FormBackup backup = new FormBackup();
+
+    await backup.open();
+    dynamic activeInternet =await backup.read("activeInternet", "true");
+
     var connectivityResult = await (Connectivity().checkConnectivity());
-    if (connectivityResult == ConnectivityResult.none) {
+    if (activeInternet == "true" ? (connectivityResult == ConnectivityResult.none) : true) {
       return await localSave(args, docPath, bePath, ubigeo, user, geoLocation,
-          compositions, int.parse(tipodocumento));
+          compositions, int.parse(tipodocumento),frnumero_documento,frapellido_paterno,frapellido_materno,frnombres,int.parse(frparentesco));
     } else {
       try {
         var postUri = Uri.parse(ROOT + '/registros/guardarBeneficiario/');
         var request = new http.MultipartRequest("POST", postUri);
         request.fields['tipo_captura_id'] = args['tipo_captura_id'].toString();
         request.fields['tipo_documento_id'] = tipodocumento.toString();
-        request.fields['numero_documento'] = args['numero_documento'];
+        request.fields['fr_numero_documento'] = frnumero_documento.toString();
+        request.fields['fr_apellido_paterno'] = frapellido_paterno.toString();
+        request.fields['fr_apellido_materno'] = frapellido_materno.toString();
+        request.fields['fr_nombres'] = frnombres.toString();
+        print("frparentesco.toString()");
+        print(frparentesco.toString());
+        print(frparentesco.toString()=="0");
+        request.fields['fr_parentesco_id'] = frparentesco.toString()=="0"||frparentesco.toString()==""?"":frparentesco.toString();
+        request.fields['numero_documento'] = args['numero_documento']==null?"":args['numero_documento'];
         request.fields['primer_apellido'] = args['primer_apellido'];
         request.fields['segundo_apellido'] = args['segundo_apellido'];
         request.fields['nombre'] = args['nombre'];
@@ -183,9 +246,10 @@ class Helper {
         request.fields['usuario_id'] = user.toString();
         request.fields['ubigeo_id'] = ubigeo.toString();
         request.fields['numero_telefono'] = args['numero_telefono'].toString();
-        request.fields['tipo_vivienda_id'] =
-            args['tipo_vivienda_id'].toString();
-
+        request.fields['tipo_vivienda_id'] =  args['tipo_vivienda_id'].toString();
+        request.fields['zona_entrega_id'] =  args['zona_entrega_id'].toString();
+        print("before save");
+        print(args);
         if (compositions != null && compositions.length > 0) {
           var i = 0;
           for (var c in compositions) {
@@ -204,6 +268,9 @@ class Helper {
               .add(await http.MultipartFile.fromPath("adjuntos[1]", bePath));
         }
         http.StreamedResponse response = await request.send();
+        final respStr = await http.Response.fromStream(response);
+        print("respStr");
+        print(response.statusCode);
 
 /*
 response.stream.transform(utf8.decoder).listen((value) {
@@ -222,7 +289,7 @@ response.stream.transform(utf8.decoder).listen((value) {
               await file.delete();
             }
           }
-          return true;
+          return respStr.body;
         }
         return false;
       } catch (e) {
