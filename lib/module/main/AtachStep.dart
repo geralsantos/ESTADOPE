@@ -50,10 +50,8 @@ class AtachStepState extends State<AtachStep> {
 
   void atachPicture(
       BuildContext context, String title, String pref, String docpath) async {
-    print("docpath------------");
-    print(docpath);
-    final cameras = await availableCameras();
-    final firstCamera = cameras.first;
+    /*final cameras = await availableCameras();
+    final firstCamera = cameras.first;*/
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -67,9 +65,9 @@ class AtachStepState extends State<AtachStep> {
                   try {
                     final pickedFile = await _picker.getImage(
                       source: source,
-                      maxWidth: 480,
-                      maxHeight: 480,
-                      //imageQuality: quality,
+                      maxWidth: 1200,
+                      maxHeight: 700,
+                      imageQuality: 50,
                     );
                     String name = pref + DateTime.now().toString() + '.jpg';
                     String dirBefore = pathDart.dirname(pickedFile.path);
@@ -295,7 +293,15 @@ class DisplayPictureScreen extends StatelessWidget {
       ),
       // The image is stored as a file on the device. Use the `Image.file`
       // constructor with the given path to display the image.
-      body: Image.file(File(imagePath)),
+      body: Container(
+        padding: EdgeInsets.all(5),
+        alignment: Alignment.center,
+        child: InkWell(
+          splashColor: Colors.blue.withAlpha(30),
+          onTap: () {},
+          child: Image.file(File(imagePath)),
+        ),
+      ),
     );
   }
 }

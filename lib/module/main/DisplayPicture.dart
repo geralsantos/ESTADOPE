@@ -11,11 +11,15 @@ class DisplayPicture extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: Card(
-        child: InkWell( 
+        
+        child: Container(
+          alignment: Alignment.center ,
+          child: InkWell( 
           splashColor: Colors.blue.withAlpha(30),
           onTap: (){},
           child: Image.file(File(imagePath)),
         ),
+          ),
       ),
     );
   }

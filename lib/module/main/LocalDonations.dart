@@ -5,6 +5,7 @@ import 'package:estado/module/sotorage/FormBackup.dart';
 import 'package:estado/service/Helper.dart';
 import 'package:flutter/material.dart';
 import 'package:estado/module/main/LoadingDialog.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 FormBackup backup = new FormBackup();
 
@@ -17,25 +18,27 @@ class LocalDonations extends StatefulWidget {
 
 class LocalDonationsState extends State<LocalDonations> {
   Helper helper = new Helper();
-  bool hasData=false;
-  Future<dynamic> messageDialog(IconData icon, Color color, String msj,bool isConfirm) async{
-    List<Widget> children=[];
+  bool hasData = false;
+  Future<dynamic> messageDialog(
+      IconData icon, Color color, String msj, bool isConfirm) async {
+    List<Widget> children = [];
 
-                      if(isConfirm){
-                       children.add( FlatButton(
-                          child: Text("Cancelar"),
-                          onPressed: () {
-                            Navigator.of(context).pop(false);
-                          },
-                        ));
-                      }
-                      children.add( FlatButton(
-                          child: Text("Aceptar"),
-                          onPressed: () {
-                            Navigator.of(context).pop(true);
-                          },
-                        ));
+    if (isConfirm) {
+      children.add(FlatButton(
+        child: Text("Cancelar"),
+        onPressed: () {
+          Navigator.of(context).pop(false);
+        },
+      ));
+    }
+    children.add(FlatButton(
+      child: Text("Aceptar"),
+      onPressed: () {
+        Navigator.of(context).pop(true);
+      },
+    ));
     return await showDialog(
+        barrierDismissible: !isConfirm,
         context: context,
         builder: (BuildContext bc) {
           return Dialog(
@@ -50,7 +53,7 @@ class LocalDonationsState extends State<LocalDonations> {
                     Text(msj, style: TextStyle(fontSize: 14)),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
-                      children:children,
+                      children: children,
                     )
                   ],
                 )),
@@ -61,26 +64,51 @@ class LocalDonationsState extends State<LocalDonations> {
   void upload() async {
     await backup.open();
     var connectivityResult = await (Connectivity().checkConnectivity());
-    dynamic activeInternet =await backup.read("activeInternet", "true");
-    if (activeInternet =="true"? (connectivityResult == ConnectivityResult.none) : true) {
-      messageDialog(Icons.cloud_off, Colors.red, "¡Sin conexión!",false);
-    }else{
-  if(hasData){
-          bool go= await messageDialog(Icons.help, Colors.grey, "¿Sincronizar?",true);
-      if(go){
-          LoadingDialog.show(context);
-        bool result=await helper.upload();
-          LoadingDialog.hide(context);
-        if(result){
-          messageDialog(Icons.check_circle, Colors.green, "Sincronizado",false);
-        }else{
-          messageDialog(Icons.error, Colors.red, "Ocurrió un error al enviar",false);
-        }
-      }
-  }else{
-     messageDialog(Icons.check_circle, Colors.green, "Nada que sincronizar",false);
-  }
+    dynamic activeInternet = await backup.read("activeInternet", "true");
+    if (activeInternet == "true"
+        ? (connectivityResult == ConnectivityResult.none)
+        : true) {
+      messageDialog(Icons.cloud_off, Colors.red, "¡Sin conexión!", false);
+    } else {
+      if (hasData) {
+        var prefs = await SharedPreferences.getInstance();
+        print("helper.checkUser");
+        await helper
+            .checkUser(prefs.getString('usuario').toString(),prefs.getString('contrasena').toString())
+            .then((usuarioExiste) async {
+          if (!usuarioExiste) {
+            //si no existe el usuario
+            bool go2 = await messageDialog(Icons.error, Colors.grey,
+                "El usuario ya no existe en el sistema", false);
+            if (go2) {
+              final prefs = await SharedPreferences.getInstance();
+              prefs.clear();
+              Navigator.pushReplacementNamed(context, '/login');
+            }
+          }
+        }).catchError((onError) {
+          print("helper.checkUser2 ERror");
+          print(onError);
+        });
 
+        bool go =
+            await messageDialog(Icons.help, Colors.grey, "¿Sincronizar?", true);
+        if (go) {
+          LoadingDialog.show(context);
+          bool result = await helper.upload();
+          LoadingDialog.hide(context);
+          if (result) {
+            messageDialog(
+                Icons.check_circle, Colors.green, "Sincronizado", false);
+          } else {
+            messageDialog(
+                Icons.error, Colors.red, "Ocurrió un error al enviar", false);
+          }
+        }
+      } else {
+        messageDialog(
+            Icons.check_circle, Colors.green, "Nada que sincronizar", false);
+      }
     }
   }
 
@@ -105,11 +133,9 @@ class LocalDonationsState extends State<LocalDonations> {
         builder: (BuildContext c, snapashot) {
           Widget child;
           if (snapashot.hasData) {
-            
             List<Widget> items = new List();
             for (var d in snapashot.data) {
               items.add(Card(
-               
                 child: InkWell(
                   onTap: () {},
                   splashColor: Colors.red.withAlpha(30),
@@ -123,22 +149,28 @@ class LocalDonationsState extends State<LocalDonations> {
                           width: MediaQuery.of(context).size.width - 40,
                           child: buildImagePreview(d['documento_path'])),
                       Row(
-                      
                         children: <Widget>[
                           Container(
-                            padding: EdgeInsets.fromLTRB(10, 10, 5, 5),
-                            width: MediaQuery.of(context).size.width-35,
-                            child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(d['nombre'] + ' ' + d['primer_apellido']+' '+d['segundo_apellido'],
-                             softWrap: false,overflow: TextOverflow.clip,),
-                              InputChip(
-                                label: Text("Documento:"+d['numero_documento']),
-                              ),
-                            ],
-                          )
-                          )
+                              padding: EdgeInsets.fromLTRB(10, 10, 5, 5),
+                              width: MediaQuery.of(context).size.width - 35,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Text(
+                                    d['nombre'] +
+                                        ' ' +
+                                        d['primer_apellido'] +
+                                        ' ' +
+                                        d['segundo_apellido'],
+                                    softWrap: false,
+                                    overflow: TextOverflow.clip,
+                                  ),
+                                  InputChip(
+                                    label: Text(
+                                        "Documento:" + d['numero_documento']),
+                                  ),
+                                ],
+                              ))
                         ],
                       )
                     ],
@@ -146,22 +178,20 @@ class LocalDonationsState extends State<LocalDonations> {
                 ),
               ));
             }
-            if(items.length>0){
-              child=GridView.count(
-                primary: false,
-                padding: const EdgeInsets.all(10),
-                crossAxisSpacing: 5,
-                mainAxisSpacing: 10,
-                crossAxisCount: 1,
-                children: items);
-   
-                   hasData=true;
-     
-            }else{
-              child=Text('Sin registros');
+            if (items.length > 0) {
+              child = GridView.count(
+                  primary: false,
+                  padding: const EdgeInsets.all(10),
+                  crossAxisSpacing: 5,
+                  mainAxisSpacing: 10,
+                  crossAxisCount: 1,
+                  children: items);
 
-                hasData=false;
-   
+              hasData = true;
+            } else {
+              child = Text('Sin registros');
+
+              hasData = false;
             }
           } else if (snapashot.hasError) {
             child = Text("Nada por aqui");

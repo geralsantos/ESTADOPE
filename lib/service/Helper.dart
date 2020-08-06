@@ -31,6 +31,18 @@ class Helper {
 
     return null;
   }
+   Future<bool> checkUser(String email,String contrasena) async {
+    try {
+      var request = await http.post(ROOT + '/login/checkUser/',body: {
+      "usuario": email.trim(),"contrasena":contrasena.trim(),
+    });
+    print("request.body");print(request.body=="200");
+      return request.body=="200";
+    } catch (e) {
+      print(e);
+    }
+    return false;
+  }
   Future<List> getCaptureTypes(String id) async {
     try {
       var request = await http.get(ROOT + '/registros/tipocaptura/ver/' + id);

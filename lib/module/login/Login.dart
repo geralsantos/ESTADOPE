@@ -45,6 +45,7 @@ BuildContext context;
         prefs.setString('nombres', response['nombres']);
         prefs.setString('apellidos', response['apellidos']);
         prefs.setString('usuario', response['usuario']);
+        prefs.setString('contrasena', password.value.trim());
         prefs.setInt('id', response['id']);
         prefs.setInt('ubigeo_id', response['ubigeo_id']);
         loggedUser = new User();

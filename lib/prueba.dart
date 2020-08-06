@@ -13,36 +13,27 @@ class MyAppPrueba extends StatelessWidget {
   final String pref;
   final Function callback;
   final String docpath;
-  const MyAppPrueba({
-    Key key,
-    this.title,
-    this.pref,
-    this.callback,this.docpath
-  }) : super(key: key);
-
-
+  const MyAppPrueba(
+      {Key key, this.title, this.pref, this.callback, this.docpath})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(title)),
-      body: MyHomePage(pref:pref,callback: callback,docpath:docpath),
+      body: MyHomePage(pref: pref, callback: callback, docpath: docpath),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  
-final String title;
+  final String title;
   final String pref;
   final Function callback;
   final String docpath;
-  const MyHomePage({
-    Key key,
-    this.title,
-    this.pref,
-    this.callback,this.docpath
-  }) : super(key: key);
+  const MyHomePage(
+      {Key key, this.title, this.pref, this.callback, this.docpath})
+      : super(key: key);
 
   @override
   _MyHomePageState createState() => _MyHomePageState();
@@ -81,7 +72,6 @@ class _MyHomePageState extends State<MyHomePage> {
         }
       });
   }*/
- 
 
   @override
   void dispose() {
@@ -91,22 +81,13 @@ class _MyHomePageState extends State<MyHomePage> {
     super.dispose();
   }
 
-
   Widget _previewImage() {
     final Text retrieveError = _getRetrieveErrorWidget();
     if (retrieveError != null) {
       return retrieveError;
     }
-    print("_previewImage");
-    print(_imageFile);
     if (_imageFile != null) {
-      if (kIsWeb) {
-        // Why network?
-        // See https://pub.dev/packages/image_picker#getting-ready-for-the-web-platform
-        return Image.network(_imageFile);
-      } else {
-        return Image.file(File(_imageFile));
-      }
+      return Image.file(File(_imageFile));
     } else if (_pickImageError != null) {
       return Text(
         'Pick image error: $_pickImageError',
@@ -122,18 +103,18 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> retrieveLostData() async {
     print("widget.docpath");
-    print(widget.docpath!=null);
-    if (widget.docpath!=null) {
-       setState(() {
-          _imageFile = widget.docpath;
-        });
+    print(widget.docpath != null);
+    if (widget.docpath != null) {
+      setState(() {
+        _imageFile = widget.docpath;
+      });
     } else {
       setState(() {
-          _imageFile = "";
-        });
+        _imageFile = "";
+      });
     }
     return widget.docpath;
-   /* final LostData response = await _picker.getLostData();
+    /* final LostData response = await _picker.getLostData();
     if (response.isEmpty) {
       return;
     }
@@ -154,17 +135,33 @@ class _MyHomePageState extends State<MyHomePage> {
             ? FutureBuilder<void>(
                 future: retrieveLostData(),
                 builder: (BuildContext context, AsyncSnapshot snapshot) {
-                  if (snapshot.data==null) {
-                     return const Text(
-                        'No tienes imagen seleccionada.',
-                        textAlign: TextAlign.center,
-                      );
+                  if (snapshot.data == null) {
+                    return const Text(
+                      'No tienes imagen seleccionada.',
+                      textAlign: TextAlign.center,
+                    );
                   } else {
-                      return _previewImage();
+                    return Container(
+                      padding: EdgeInsets.all(5),
+                      alignment: Alignment.center,
+                      child: InkWell(
+                        splashColor: Colors.blue.withAlpha(30),
+                        onTap: () {},
+                        child: _previewImage(),
+                      ),
+                    );
                   }
                 },
               )
-            : ( _previewImage()),
+            : (Container(
+              padding: EdgeInsets.all(5),
+                      alignment: Alignment.center,
+                      child: InkWell(
+                        splashColor: Colors.blue.withAlpha(30),
+                        onTap: () {},
+                        child: _previewImage(),
+                      ),
+                    )),
       ),
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
@@ -180,7 +177,6 @@ class _MyHomePageState extends State<MyHomePage> {
               child: const Icon(Icons.camera_alt),
             ),
           ),
-          
         ],
       ),
     );
@@ -197,17 +193,17 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> _displayPickImageDialog(
       BuildContext context, OnPickImageCallback onPick) async {
-         double width = maxWidthController.text.isNotEmpty
-                        ? double.parse(maxWidthController.text)
-                        : null;
-                    double height = maxHeightController.text.isNotEmpty
-                        ? double.parse(maxHeightController.text)
-                        : null;
-                    int quality = qualityController.text.isNotEmpty
-                        ? int.parse(qualityController.text)
-                        : null;
-                    onPick(width, height, quality);
-    return  ;
+    double width = maxWidthController.text.isNotEmpty
+        ? double.parse(maxWidthController.text)
+        : null;
+    double height = maxHeightController.text.isNotEmpty
+        ? double.parse(maxHeightController.text)
+        : null;
+    int quality = qualityController.text.isNotEmpty
+        ? int.parse(qualityController.text)
+        : null;
+    onPick(width, height, quality);
+    return;
   }
 }
 
@@ -215,5 +211,3 @@ typedef void OnPickImageCallback(
     double maxWidth, double maxHeight, int quality);
 
 // A widget that displays the picture taken by the user.
-
- 

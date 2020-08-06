@@ -88,7 +88,7 @@ class WizardFormBloc extends FormBloc<String, String> {
           tipovivienda_sql.length > 0) {
         select1.updateItems(docs);
         var bdoc = await backup.read("select1", docs[0]['id'].toString());
-        if (bdoc == "1" ) {
+        if (bdoc == "1") {
           _inputType = TextInputType.number;
         } else {
           _inputType = TextInputType.text;
@@ -101,7 +101,6 @@ class WizardFormBloc extends FormBloc<String, String> {
         select1.updateInitialValue(docType);
         documentType = docType;
 
-       
         captureField.updateItems(types);
         var btype =
             await backup.read("captureField", types[0]['id'].toString());
@@ -171,6 +170,27 @@ class WizardFormBloc extends FormBloc<String, String> {
             print(err);
           }
         }
+
+        var prefs = await SharedPreferences.getInstance();
+        print("helper.checkUser");
+        await helper
+            .checkUser(prefs.getString('usuario').toString(),prefs.getString('contrasena').toString())
+            .then((usuarioExiste) {
+          if (!usuarioExiste) {
+            //si no existe el usuario
+            responseDialogSaved(Icons.error, Colors.red,
+                "El usuario ya no existe en el sistema", contexto, () async {
+              final prefs = await SharedPreferences.getInstance();
+              prefs.clear();
+              //Navigator.pop(contexto);
+              Navigator.pushReplacementNamed(contexto, '/login');
+            });
+          }
+        }).catchError((onError) {
+          print("helper.checkUser2 ERror");
+          print(onError);
+        });
+
       } else {
         emitLoadFailed();
         responseDialog(Icons.error, Colors.red,
@@ -344,7 +364,6 @@ class WizardFormBloc extends FormBloc<String, String> {
   var ghost = TextFieldBloc(name: 'ghost');
   WizardFormBloc(int uId, int id, bool sil, BuildContext c)
       : super(isLoading: true) {
-    
     documentNumber.addValidators([
       (value) {
         if (sinDNI) {
@@ -352,7 +371,6 @@ class WizardFormBloc extends FormBloc<String, String> {
         }
         if (value != null) {
           if (_inputType == TextInputType.number) {
-            
             if (value.length == 8) {
               if (!isNumeric(value)) {
                 return 'El núm. de DNI debe ser numérico';
@@ -441,6 +459,19 @@ class WizardFormBloc extends FormBloc<String, String> {
       if (documentPath == null) {
         emitFailure(failureResponse: "Adjunte una foto de la Evidencia 1");
       } else {
+        var prefs = await SharedPreferences.getInstance();
+        print("helper.checkUser");
+        bool usuarioExiste = await helper.checkUser(prefs.getString('usuario').toString(),prefs.getString('contrasena').toString());
+        if (!usuarioExiste) {
+            //si no existe el usuario
+            responseDialogSaved(Icons.error, Colors.red,
+                "El usuario ya no existe en el sistema", contexto, () async {
+              final prefs = await SharedPreferences.getInstance();
+              prefs.clear();
+              Navigator.pushReplacementNamed(contexto, '/login');
+            });
+            return;
+        }
         bool send = await confirmSave(contexto, "¿Está seguro(a) de enviar?");
         if (send) {
           var tipodoc = await backup.read("select1", null);
@@ -485,10 +516,15 @@ class WizardFormBloc extends FormBloc<String, String> {
             backup.remove("frapellido_paterno");
             backup.remove("frapellido_materno");
             backup.remove("frnombres");
-            if (status == true) {
+            if (status == true) { //se guarda local
               emitSuccess(successResponse: "Registro enviado con éxito.");
             } else {
-              if (tipodoc == "4") {
+              if (status == false) {// enviado a servidor pero sale error
+                emitFailure(
+                failureResponse:
+                    "Ocurrió un error inesperado, intentelo nuevamente!");
+              }else{ // enviado a servidor
+                if (tipodoc == "4") {
                 var data = json.decode(status);
                 responseDialogSaved(
                     Icons.check,
@@ -500,6 +536,7 @@ class WizardFormBloc extends FormBloc<String, String> {
                 });
               } else {
                 emitSuccess(successResponse: "Registro enviado con éxito.");
+              }
               }
             }
 
@@ -607,7 +644,7 @@ class WizardFormBloc extends FormBloc<String, String> {
             Colors.red,
             "No se han encontrado datos de el beneficiario.\nRealice el registro manual.",
             contexto);
-            focusApeP.requestFocus();
+        focusApeP.requestFocus();
       }
       b._varprueba = true;
       response = true;
@@ -675,7 +712,7 @@ class _WizardFormState extends State<WizardForm> {
     _readBackupSelect2();
     _readBackupZonaEntrega();
   }
- 
+
   void _readBackupSelect2() {
     readBackupSelect2().then((onValue) {
       setState(() {
@@ -912,7 +949,8 @@ class _WizardFormState extends State<WizardForm> {
                       setState(() {
                         _inputType = TextInputType.number;
                       });
-                      codigoDniGenerar(wizardFormBloc.documentNumber, wizardFormBloc);
+                      codigoDniGenerar(
+                          wizardFormBloc.documentNumber, wizardFormBloc);
                     } else {
                       setState(() {
                         _inputType = TextInputType.text;
@@ -938,7 +976,7 @@ class _WizardFormState extends State<WizardForm> {
                     wizardFormBloc.backup.save("select1", value.toString());
                     focusNumDoc.requestFocus();
 
-                     /*if (value == 4) {
+                    /*if (value == 4) {
                       wizardFormBloc.backup.save("documentnumber", null);
                       wizardFormBloc.documentNumber.updateValue(null);
                     }else {
@@ -967,7 +1005,7 @@ class _WizardFormState extends State<WizardForm> {
                     setState(() {
                       cargarInit = true;
                     });
-                    if (int.parse(snapshot.data) != 1  ) {
+                    if (int.parse(snapshot.data) != 1) {
                       setState(() {
                         _inputType = TextInputType.text;
                       });
@@ -977,10 +1015,12 @@ class _WizardFormState extends State<WizardForm> {
                       });
                     }
                   },
-                  keyboardType: (int.parse(snapshot.data) !=1
-                      ? (!cargarInit ? TextInputType.text : _inputType)  : _inputType),
+                  keyboardType: (int.parse(snapshot.data) != 1
+                      ? (!cargarInit ? TextInputType.text : _inputType)
+                      : _inputType),
                   onChanged: (val) {
-                    if ( isNumeric(val) && val.length == 8 &&
+                    if (isNumeric(val) &&
+                        val.length == 8 &&
                         !isPasaporte &&
                         !sinDNI &&
                         _inputType == TextInputType.number) {
@@ -1147,37 +1187,36 @@ class _WizardFormState extends State<WizardForm> {
           Container(
             width: 250,
             height: 50,
-            child:  RaisedButton(
-            
-            onPressed: () {
-              Navigator.pushNamed(context, '/familia');
-            },
-            color: Colors.white,
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(2, 0, 2, 0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: <Widget>[
-                  Text(
-                    'FAMILIAR RECEPTOR',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.red,
-                      
+            child: RaisedButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/familia');
+              },
+              color: Colors.white,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(2, 0, 2, 0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    Text(
+                      'FAMILIAR RECEPTOR',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.red,
+                      ),
                     ),
-                    
-                  ),
-                  Icon(
-                    Icons.person_add,
-                    color: Colors.red,
-                  ),
-                ],
+                    Icon(
+                      Icons.person_add,
+                      color: Colors.red,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
+          SizedBox(
+            height: 20,
           ),
-          SizedBox(height: 20,),
           /*RaisedButton(
           
           color: Colors.red,
