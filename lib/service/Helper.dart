@@ -260,6 +260,7 @@ Future getDataWsReniec(String numero_documento) async {
         request.fields['numero_telefono'] = args['numero_telefono'].toString();
         request.fields['tipo_vivienda_id'] =  args['tipo_vivienda_id'].toString();
         request.fields['zona_entrega_id'] =  args['zona_entrega_id'].toString();
+        request.fields['last_version'] =  APP_TITLE;
         print("before save");
         print(args);
         if (compositions != null && compositions.length > 0) {

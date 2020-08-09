@@ -65,8 +65,8 @@ class AtachStepState extends State<AtachStep> {
                   try {
                     final pickedFile = await _picker.getImage(
                       source: source,
-                      maxWidth: 1200,
-                      maxHeight: 700,
+                      maxWidth: 1500,
+                      maxHeight: 2500,
                       imageQuality: 50,
                     );
                     String name = pref + DateTime.now().toString() + '.jpg';
