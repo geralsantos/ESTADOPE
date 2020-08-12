@@ -480,6 +480,7 @@ class WizardFormBloc extends FormBloc<String, String> {
           var frapellido_materno = await backup.read("frapellido_materno", "");
           var frnombres = await backup.read("frnombres", "");
           var frparentesco = await backup.read("parentesco", "0");
+          var zonaentrega_ = await backup.read("zonaentrega", "0");
           dynamic status = await helper.save(
               state.toJson(),
               documentPath,
@@ -489,6 +490,7 @@ class WizardFormBloc extends FormBloc<String, String> {
               geoLocation,
               compositions,
               tipodoc,
+              zonaentrega_,
               frnumero_documento,
               frapellido_paterno,
               frapellido_materno,

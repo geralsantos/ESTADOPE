@@ -152,6 +152,8 @@ Future getDataWsReniec(String numero_documento) async {
             row['georeferencia'],
             compositions,
             row['tipo_documento_id'],
+            row['zona_entrega_id'],
+            
             row['fr_numero_documento'],
             row['fr_apellido_paterno'],
             row['fr_apellido_materno'],
@@ -176,7 +178,7 @@ Future getDataWsReniec(String numero_documento) async {
   }
 
   Future<dynamic> localSave(args, String docPath, String bePath, int ubigeo,
-      int user, String geoLocation, compositions, int tipodocumento,String frnumero_documento, String frapellido_paterno, String frapellido_materno, String frnombres,int frparentesco) async {
+      int user, String geoLocation, compositions, int tipodocumento,int zonaentrega_,String frnumero_documento, String frapellido_paterno, String frapellido_materno, String frnombres,int frparentesco) async {
     try {
       List j = new List();
       for (var c in compositions) {
@@ -207,7 +209,7 @@ Future getDataWsReniec(String numero_documento) async {
           bePath,
           args['numero_telefono'],
           args['tipo_vivienda_id'],
-          args['zona_entrega_id']
+          zonaentrega_
       );
       Storage2 s = new Storage2();
       await s.open();
@@ -220,7 +222,7 @@ Future getDataWsReniec(String numero_documento) async {
   }
 
   Future<dynamic> save(args, String docPath, String bePath, int ubigeo, int user,
-      String geoLocation, compositions, var tipodocumento,String frnumero_documento, String frapellido_paterno, String frapellido_materno, String frnombres,var frparentesco) async {
+      String geoLocation, compositions, var tipodocumento,String zonaentrega_,String frnumero_documento, String frapellido_paterno, String frapellido_materno, String frnombres,var frparentesco) async {
     FormBackup backup = new FormBackup();
 
     await backup.open();
@@ -229,7 +231,7 @@ Future getDataWsReniec(String numero_documento) async {
     var connectivityResult = await (Connectivity().checkConnectivity());
     if (activeInternet == "true" ? (connectivityResult == ConnectivityResult.none) : true) {
       return await localSave(args, docPath, bePath, ubigeo, user, geoLocation,
-          compositions, int.parse(tipodocumento),frnumero_documento,frapellido_paterno,frapellido_materno,frnombres,int.parse(frparentesco));
+          compositions, int.parse(tipodocumento),int.parse(zonaentrega_),frnumero_documento,frapellido_paterno,frapellido_materno,frnombres,int.parse(frparentesco));
     } else {
       try {
         var postUri = Uri.parse(ROOT + '/registros/guardarBeneficiario/');
@@ -259,7 +261,7 @@ Future getDataWsReniec(String numero_documento) async {
         request.fields['ubigeo_id'] = ubigeo.toString();
         request.fields['numero_telefono'] = args['numero_telefono'].toString();
         request.fields['tipo_vivienda_id'] =  args['tipo_vivienda_id'].toString();
-        request.fields['zona_entrega_id'] =  args['zona_entrega_id'].toString();
+        request.fields['zona_entrega_id'] =  zonaentrega_.toString()=="0"||zonaentrega_.toString()=="" ?"":zonaentrega_.toString();
         request.fields['last_version'] =  APP_TITLE;
         print("before save");
         print(args);
