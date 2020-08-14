@@ -152,7 +152,7 @@ Future getDataWsReniec(String numero_documento) async {
             row['georeferencia'],
             compositions,
             row['tipo_documento_id'],
-            row['zona_entrega_id'],
+            row['zona_entrega_id'].toString(),
             
             row['fr_numero_documento'],
             row['fr_apellido_paterno'],

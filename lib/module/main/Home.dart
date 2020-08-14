@@ -459,18 +459,22 @@ class WizardFormBloc extends FormBloc<String, String> {
       if (documentPath == null) {
         emitFailure(failureResponse: "Adjunte una foto de la Evidencia 1");
       } else {
-        var prefs = await SharedPreferences.getInstance();
-        print("helper.checkUser");
-        bool usuarioExiste = await helper.checkUser(prefs.getString('usuario').toString(),prefs.getString('contrasena').toString());
-        if (!usuarioExiste) {
-            //si no existe el usuario
-            responseDialogSaved(Icons.error, Colors.red,
-                "El usuario ya no existe en el sistema", contexto, () async {
-              final prefs = await SharedPreferences.getInstance();
-              prefs.clear();
-              Navigator.pushReplacementNamed(contexto, '/login');
-            });
-            return;
+        dynamic activeInternet = await backup.read("activeInternet", "true");
+        var connectivityResult = await (Connectivity().checkConnectivity());
+        if (activeInternet=="true" ? (connectivityResult != ConnectivityResult.none) : false) {
+          var prefs = await SharedPreferences.getInstance();
+          print("helper.checkUser");
+          bool usuarioExiste = await helper.checkUser(prefs.getString('usuario').toString(),prefs.getString('contrasena').toString());
+          if (!usuarioExiste) {
+              //si no existe el usuario
+              responseDialogSaved(Icons.error, Colors.red,
+                  "El usuario ya no existe en el sistema", contexto, () async {
+                final prefs = await SharedPreferences.getInstance();
+                prefs.clear();
+                Navigator.pushReplacementNamed(contexto, '/login');
+              });
+              return;
+          }
         }
         bool send = await confirmSave(contexto, "¿Está seguro(a) de enviar?");
         if (send) {
