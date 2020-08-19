@@ -1,6 +1,8 @@
+import 'dart:collection';
 import 'dart:io';
 
 import 'package:connectivity/connectivity.dart';
+import 'package:data_connection_checker/data_connection_checker.dart';
 import 'package:estado/config.dart';
 import 'package:estado/module/entity/Donation.dart';
 import 'package:estado/module/sotorage/FormBackup.dart';
@@ -10,7 +12,55 @@ import 'package:estado/service/Composition.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
 import 'dart:convert';
+
+import 'package:shared_preferences/shared_preferences.dart';
+
 class Helper {
+  Future<bool> isInternet() async {
+    var connectivityResult = await (Connectivity().checkConnectivity());
+    if (connectivityResult == ConnectivityResult.mobile) {
+      // I am connected to a mobile network, make sure there is actually a net connection.
+      if (await DataConnectionChecker().hasConnection) {
+         try {
+            var docs = await this.getDocuments();
+              if (docs == null) {
+                return false;
+              }
+            } on SocketException catch (_) {
+              return false;
+            } catch(ex){
+              return false;
+            }
+        // Mobile data detected & internet connection confirmed.
+        return true;
+      } else {
+        // Mobile data detected but no internet connection found.
+        return false;
+      }
+    } else if (connectivityResult == ConnectivityResult.wifi) {
+      // I am connected to a WIFI network, make sure there is actually a net connection.
+      if (await DataConnectionChecker().hasConnection) {
+        try {
+            var docs = await this.getDocuments();
+              if (docs == null) {
+                return false;
+              }
+            } on SocketException catch (_) {
+              return false;
+            } catch(ex){
+              return false;
+            }
+        // Wifi detected & internet connection confirmed.
+        return true;
+      } else {
+        // Wifi detected but no internet connection found.
+        return false;
+      }
+    } else {
+      // Neither mobile data or WIFI detected, not internet connection found.
+      return false;
+    }
+  }
   Future getDocuments() async {
     try {
       var request = await http.get(ROOT + '/registros/tipodocumento/ver/');
@@ -21,6 +71,7 @@ class Helper {
 
     return null;
   }
+
   Future getParentesco() async {
     try {
       var request = await http.get(ROOT + '/registros/parentesco/ver/');
@@ -31,18 +82,27 @@ class Helper {
 
     return null;
   }
-   Future<bool> checkUser(String email,String contrasena) async {
+
+  Future<dynamic> checkUser(String email, String contrasena) async {
+    Map<String,dynamic> response = Map<String,dynamic>();
     try {
-      var request = await http.post(ROOT + '/login/checkUser/',body: {
-      "usuario": email.trim(),"contrasena":contrasena.trim(),
-    });
-    print("request.body");print(request.body=="200");
-      return request.body=="200";
+      var request = await http.post(ROOT + '/login/checkUser/', body: {
+        "usuario": email.trim(),
+        "contrasena": contrasena.trim(),
+      });
+      print("request.body");
+      print(request.body == "200");
+      response["error"] = request.body == "200" ? "success" : "error";
+      response["mensaje"] =request.body == "200"? "" : "El usuario ya no existe en el sistema";
+      return response;
     } catch (e) {
-      print(e);
+      response["error"] = "error";
+      response["mensaje"] = "Ocurrió un error verificando al usuario: "+e.toString();
+      return response;
     }
-    return false;
+
   }
+
   Future<List> getCaptureTypes(String id) async {
     try {
       var request = await http.get(ROOT + '/registros/tipocaptura/ver/' + id);
@@ -52,6 +112,7 @@ class Helper {
     }
     return null;
   }
+
   Future<List> getZonasEntrega(String id) async {
     try {
       var request = await http.get(ROOT + '/registros/zonasentrega/' + id);
@@ -61,6 +122,7 @@ class Helper {
     }
     return null;
   }
+
   Future<List> getStates() async {
     try {
       var request = await http.get(ROOT + '/registros/estadoentrega/ver/');
@@ -89,23 +151,19 @@ class Helper {
 
   Future getDataBeneficiario(String numero_documento) async {
     try {
-      var request = await http
-          .post(ROOT + '/registros/obtenerBeneficiario/', body: {
-        "numero_documento": numero_documento.trim()
-      });
+      var request = await http.post(ROOT + '/registros/obtenerBeneficiario/',
+          body: {"numero_documento": numero_documento.trim()});
       return json.decode(request.body);
     } catch (e) {
       print(e);
     }
     return null;
   }
-Future getDataWsReniec(String numero_documento) async {
+
+  Future getDataWsReniec(String numero_documento) async {
     try {
       var request = await http.post(ROOT + '/registros/consultabeneficiarioWs/',
-      body: {
-        "DNI": numero_documento.trim(),
-        "KEY": KEY
-      });
+          body: {"DNI": numero_documento.trim(), "KEY": KEY});
       return json.decode(request.body);
     } catch (e) {
       print(e);
@@ -113,8 +171,11 @@ Future getDataWsReniec(String numero_documento) async {
 
     return null;
   }
-  Future<bool> upload() async {
+
+  Future<dynamic> upload() async {
+    Map<String,String> response = Map<String,String>();
     try {
+
       Storage2 s = new Storage2();
       await s.open();
       var rows = await s.getAll("donacion", null);
@@ -122,7 +183,6 @@ Future getDataWsReniec(String numero_documento) async {
         var args = {
           "tipo_captura_id": row['tipo_captura_id'],
           "tipo_documento_id": row['tipo_documento_id'],
-         
           "estado_entrega_id": row['estado_entrega_id'],
           "numero_documento": row['numero_documento'],
           "primer_apellido": Uri.decodeComponent(row['primer_apellido']),
@@ -137,6 +197,8 @@ Future getDataWsReniec(String numero_documento) async {
         };
         print("args locale");
         print(args);
+        print("usuario_id");
+        print(row['usuario_id']);
         List<Composition> compositions = new List();
         var compostionsRows = json.decode(row['composicion']);
         for (var c in compostionsRows) {
@@ -144,41 +206,63 @@ Future getDataWsReniec(String numero_documento) async {
               .add(new Composition(c['nombre'], c['cantidad'], c['id']));
         }
         dynamic uploaded = await save(
-            args,
-            row['documento_path'],
-            row['beneficiario_path'],
-            row['ubigeo_id'],
-            row['usuario_id'],
-            row['georeferencia'],
-            compositions,
-            row['tipo_documento_id'],
-            row['zona_entrega_id'].toString(),
-            
-            row['fr_numero_documento'],
-            row['fr_apellido_paterno'],
-            row['fr_apellido_materno'],
-            row['fr_nombres'],
-            row['fr_parentesco_id'],
-            );
+          args,
+          row['documento_path'],
+          row['beneficiario_path'],
+          row['ubigeo_id'],
+          row['usuario_id'],
+          row['georeferencia'],
+          compositions,
+          row['tipo_documento_id'],
+          row['zona_entrega_id'].toString(),
+          row['fr_numero_documento'],
+          row['fr_apellido_paterno'],
+          row['fr_apellido_materno'],
+          row['fr_nombres'],
+          row['fr_parentesco_id'],false
+        );
         print("uploaded");
         print(uploaded);
-        if (uploaded!=null){
-          if(uploaded!=false){
+        if (uploaded != null) {
+          //uploaded != false
+          if (uploaded["estado"] != "error") {
             print("destroy");
             print(row['id']);
             await s.destroy("donacion", row['id']);
-          }
+          }else{
+            response = uploaded;
+            break;
+          } 
+        }else{
+          response["estado"] = "error";
+          response["mensaje"] = "Ocurrió un error al sincronizar.: "+uploaded;
+          break;
         }
       }
-      return true;
+      return response;
     } catch (err) {
-      print(err);
+      response["estado"] = "error";
+      response["mensaje"] = "Ocurrió un error al sincronizar. Error: "+err.toString();
+      return response;
     }
-    return false;
   }
 
-  Future<dynamic> localSave(args, String docPath, String bePath, int ubigeo,
-      int user, String geoLocation, compositions, int tipodocumento,int zonaentrega_,String frnumero_documento, String frapellido_paterno, String frapellido_materno, String frnombres,int frparentesco) async {
+  Future<dynamic> localSave(
+      args,
+      String docPath,
+      String bePath,
+      int ubigeo,
+      int user,
+      String geoLocation,
+      compositions,
+      int tipodocumento,
+      int zonaentrega_,
+      String frnumero_documento,
+      String frapellido_paterno,
+      String frapellido_materno,
+      String frnombres,
+      int frparentesco) async {
+        Map<String,String> response = Map<String,String>();
     try {
       List j = new List();
       for (var c in compositions) {
@@ -196,7 +280,7 @@ Future getDataWsReniec(String numero_documento) async {
           frnombres,
           frparentesco,
           args['estado_entrega_id'],
-          args['numero_documento']==null?"":args['numero_documento'],
+          args['numero_documento'] == null ? "" : args['numero_documento'],
           Uri.encodeComponent(args['primer_apellido']),
           Uri.encodeComponent(args['segundo_apellido']),
           Uri.encodeComponent(args['nombre']),
@@ -209,30 +293,68 @@ Future getDataWsReniec(String numero_documento) async {
           bePath,
           args['numero_telefono'],
           args['tipo_vivienda_id'],
-          zonaentrega_
-      );
+          zonaentrega_);
       Storage2 s = new Storage2();
       await s.open();
       await s.insert("donacion", donation);
-      return true;
+      response["estado"] = "success";
+      response["mensaje"] = "Registro guardado con éxito.";
+      return response;
     } catch (err) {
-      print(err);
+      response["estado"] = "error";
+      response["mensaje"] = "Ocurrió un error al registrar en local. Error: "+err.toString();
+      return response;
     }
-    return false;
   }
 
-  Future<dynamic> save(args, String docPath, String bePath, int ubigeo, int user,
-      String geoLocation, compositions, var tipodocumento,String zonaentrega_,String frnumero_documento, String frapellido_paterno, String frapellido_materno, String frnombres,var frparentesco) async {
+  Future<dynamic> save(
+      args,
+      String docPath,
+      String bePath,
+      int ubigeo,
+      int user,
+      String geoLocation,
+      compositions,
+      var tipodocumento,
+      String zonaentrega_,
+      String frnumero_documento,
+      String frapellido_paterno,
+      String frapellido_materno,
+      String frnombres,
+      var frparentesco, bool sendLocal) async {
     FormBackup backup = new FormBackup();
-
+    var prefs = await SharedPreferences.getInstance();
     await backup.open();
-    dynamic activeInternet =await backup.read("activeInternet", "true");
+    
+   
+      Map<String,String> response = Map<String,String>();
 
-    var connectivityResult = await (Connectivity().checkConnectivity());
-    if (activeInternet == "true" ? (connectivityResult == ConnectivityResult.none) : true) {
-      return await localSave(args, docPath, bePath, ubigeo, user, geoLocation,
-          compositions, int.parse(tipodocumento),int.parse(zonaentrega_),frnumero_documento,frapellido_paterno,frapellido_materno,frnombres,int.parse(frparentesco));
+    if (sendLocal) {
+      return await localSave(
+          args,
+          docPath,
+          bePath,
+          ubigeo,
+          user,
+          geoLocation,
+          compositions,
+          int.parse(tipodocumento),
+          int.parse(zonaentrega_),
+          frnumero_documento,
+          frapellido_paterno,
+          frapellido_materno,
+          frnombres,
+          int.parse(frparentesco));
     } else {
+      dynamic activeInternet = await backup.read("activeInternet", "true");
+    bool connectivityResult = await isInternet();
+      if(activeInternet == "true"
+        ? (connectivityResult == false)
+        : true){
+          response["estado"] = "error";
+          response["mensaje"] = "El dispositivo no cuenta con internet estable, favor de intentar nuevamente.";
+          return response;
+      }
       try {
         var postUri = Uri.parse(ROOT + '/registros/guardarBeneficiario/');
         var request = new http.MultipartRequest("POST", postUri);
@@ -244,9 +366,13 @@ Future getDataWsReniec(String numero_documento) async {
         request.fields['fr_nombres'] = frnombres.toString();
         print("frparentesco.toString()");
         print(frparentesco.toString());
-        print(frparentesco.toString()=="0");
-        request.fields['fr_parentesco_id'] = frparentesco.toString()=="0"||frparentesco.toString()==""?"":frparentesco.toString();
-        request.fields['numero_documento'] = args['numero_documento']==null?"":args['numero_documento'];
+        print(frparentesco.toString() == "0");
+        request.fields['fr_parentesco_id'] =
+            frparentesco.toString() == "0" || frparentesco.toString() == ""
+                ? ""
+                : frparentesco.toString();
+        request.fields['numero_documento'] =
+            args['numero_documento'] == null ? "" : args['numero_documento'];
         request.fields['primer_apellido'] = args['primer_apellido'];
         request.fields['segundo_apellido'] = args['segundo_apellido'];
         request.fields['nombre'] = args['nombre'];
@@ -260,11 +386,21 @@ Future getDataWsReniec(String numero_documento) async {
         request.fields['usuario_id'] = user.toString();
         request.fields['ubigeo_id'] = ubigeo.toString();
         request.fields['numero_telefono'] = args['numero_telefono'].toString();
-        request.fields['tipo_vivienda_id'] =  args['tipo_vivienda_id'].toString();
-        request.fields['zona_entrega_id'] =  zonaentrega_.toString()=="0"||zonaentrega_.toString()=="" ?"":zonaentrega_.toString();
-        request.fields['last_version'] =  APP_TITLE;
+        request.fields['tipo_vivienda_id'] =
+            args['tipo_vivienda_id'].toString();
+        request.fields['zona_entrega_id'] =
+            zonaentrega_.toString() == "0" || zonaentrega_.toString() == ""
+                ? ""
+                : zonaentrega_.toString();
+        request.fields['last_version'] = prefs.getString("packageInfoVersion"??"no existe versión");
+        request.fields['usuario'] = prefs.getString("usuario"??"");
+        request.fields['contrasena'] = prefs.getString("contrasena"??"");
+
         print("before save");
         print(args);
+        print("user");
+        print(request.fields['usuario']);
+        print(request.fields['contrasena']);
         if (compositions != null && compositions.length > 0) {
           var i = 0;
           for (var c in compositions) {
@@ -282,18 +418,12 @@ Future getDataWsReniec(String numero_documento) async {
           request.files
               .add(await http.MultipartFile.fromPath("adjuntos[1]", bePath));
         }
-        http.StreamedResponse response = await request.send();
-        final respStr = await http.Response.fromStream(response);
+        http.StreamedResponse responseStream = await request.send();
+        final respStr = await http.Response.fromStream(responseStream);
         print("respStr");
-        print(response.statusCode);
-
-/*
-response.stream.transform(utf8.decoder).listen((value) {
-        print(value);
-        return Future.value(value);
-      });
-   */
-        if (response.statusCode == 200) {
+        print(responseStream.statusCode);
+ 
+        if (responseStream.statusCode == 200) {
           final file = File(docPath);
           if (file.existsSync()) {
             await file.delete();
@@ -304,14 +434,19 @@ response.stream.transform(utf8.decoder).listen((value) {
               await file.delete();
             }
           }
-          return respStr.body;
+          response["estado"] = "success";
+          response["mensaje"] = "Registro enviado con éxito.";
+          response["data"] =respStr.body;
+        }else{
+          response["estado"] = "error";
+          response["mensaje"] = "Ocurrió un error inesperado. "+respStr.body;
         }
-        return false;
+        return response;
       } catch (e) {
-        print(e);
+        response["estado"] = "error";
+        response["mensaje"] = "Ocurrió un error inesperado. Error: "+e.toString();
+        return response;
       }
-
-      return false;
     }
   }
 }

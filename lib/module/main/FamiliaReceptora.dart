@@ -1,12 +1,13 @@
 import 'dart:convert';
 
 import 'package:connectivity/connectivity.dart';
+import 'package:data_connection_checker/data_connection_checker.dart';
 import 'package:estado/module/main/DropdownField2.dart';
 import 'package:estado/module/sotorage/FormBackup.dart';
 import 'package:estado/module/sotorage/Storage.dart';
 import 'package:estado/service/Helper.dart';
 import 'package:flutter/material.dart';
-
+import 'dart:io';
 FormBackup backup = new FormBackup();
 Storage storage = new Storage();
 
@@ -63,8 +64,56 @@ class _FamiliaReceptoraStateState extends State<FamiliaReceptoraState> {
     _controllerApeM.text = await backup.read("frapellido_materno", "");
     _controllerNombres.text = await backup.read("frnombres", "");
   }
-  Future readBackupParentesco() async {
+  Future<bool> isInternet() async {
     var connectivityResult = await (Connectivity().checkConnectivity());
+    if (connectivityResult == ConnectivityResult.mobile) {
+      // I am connected to a mobile network, make sure there is actually a net connection.
+      if (await DataConnectionChecker().hasConnection) {
+         try {
+            Helper helper = new Helper();
+            var docs = await helper.getDocuments();
+              if (docs == null) {
+                return false;
+              }
+            } on SocketException catch (_) {
+              return false;
+            } catch(ex){
+              return false;
+            }
+        // Mobile data detected & internet connection confirmed.
+        return true;
+      } else {
+        // Mobile data detected but no internet connection found.
+        return false;
+      }
+    } else if (connectivityResult == ConnectivityResult.wifi) {
+      // I am connected to a WIFI network, make sure there is actually a net connection.
+      if (await DataConnectionChecker().hasConnection) {
+        try {
+            Helper helper = new Helper();
+            var docs = await helper.getDocuments();
+              if (docs == null) {
+                return false;
+              }
+            } on SocketException catch (_) {
+              return false;
+            } catch(ex){
+              return false;
+            }
+        // Wifi detected & internet connection confirmed.
+        return true;
+      } else {
+        // Wifi detected but no internet connection found.
+        return false;
+      }
+    } else {
+      // Neither mobile data or WIFI detected, not internet connection found.
+      return false;
+    }
+  }
+  Future readBackupParentesco() async {
+    bool connectivityResult = await isInternet();
+    
     var docs;
     //await storage.open();
     dynamic activeInternet = await backup.read("activeInternet", "true");
@@ -72,7 +121,7 @@ class _FamiliaReceptoraStateState extends State<FamiliaReceptoraState> {
     
     //print("qqqqqqqqqqqqqqqqqq");
     if (activeInternet == "true"
-        ? (connectivityResult != ConnectivityResult.none)
+        ? (connectivityResult)
         : false) {
       Helper helper = new Helper();
       docs = await helper.getParentesco();
@@ -92,12 +141,13 @@ class _FamiliaReceptoraStateState extends State<FamiliaReceptoraState> {
   Future<bool> findDataFromServiceFamilia(
       BuildContext contexto, String numero_documento) async {
     Helper help = new Helper();
-    var connectivityResult = await (Connectivity().checkConnectivity());
+    bool connectivityResult = await isInternet();
+    
     dynamic activeInternet = await backup.read("activeInternet", "true");
     var response = false;
     if (activeInternet == "false"
         ? true
-        : (connectivityResult == ConnectivityResult.none)) {
+        : (connectivityResult == false)) {
       return false;
     }
     dialogLoadingData(Icons.check_circle, Colors.green,

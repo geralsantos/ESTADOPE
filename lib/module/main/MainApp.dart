@@ -1,62 +1,81 @@
+import 'dart:io';
+ 
 import 'package:camera/camera.dart';
 import 'package:estado/module/sotorage/FormBackup.dart';
 import 'package:flutter/material.dart';
 import 'package:estado/service/User.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:estado/module/main/Home.dart';
-
+ 
 import 'LocalDonations.dart';
+import 'dart:async';
+import 'package:package_info/package_info.dart';
+ 
 FormBackup backup = new FormBackup();
-Icon iconInternet =  Icon(Icons.cloud);
+Icon iconInternet = Icon(Icons.cloud);
 String estadoInternet = "Internet activo";
+
 class MainApp extends StatefulWidget {
   MainApp({Key key, this.title, this.user}) : super(key: key);
   final String title;
   final User user;
+
   @override
   _MyHomePageState createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MainApp> {
-  Future readStatusInternet () async{
+   PackageInfo _packageInfo = PackageInfo(
+    appName: 'Unknown',
+    packageName: 'Unknown',
+    version: 'Unknown',
+    buildNumber: 'Unknown',
+  );
+
+  Future readStatusInternet() async {
     await backup.open();
-    dynamic activeInternet =await backup.read("activeInternet", "true");
+    dynamic activeInternet = await backup.read("activeInternet", "true");
     print("readStatusInternet");
     print(activeInternet);
-    if(activeInternet=="true"){
+    if (activeInternet == "true") {
       setState(() {
         iconInternet = Icon(Icons.cloud);
         estadoInternet = "Internet Activo";
       });
-    }else{
+    } else {
       setState(() {
         iconInternet = Icon(Icons.cloud_off);
         estadoInternet = "Internet Inactivo";
-
       });
     }
   }
-  Future internetStatus() async{
+ Future<String> getVersionNumber() async {
+  final PackageInfo info = await PackageInfo.fromPlatform();
+  final prefs2 = await SharedPreferences.getInstance();
+  prefs2.setString('packageInfoVersion',info.version);
+  
+    setState(() {
+      _packageInfo = info;
+    });
+  }
+  Future internetStatus() async {
     await backup.open();
 
-    dynamic activeInternet =await backup.read("activeInternet", "true");
-    print("activeInternet");
-    print(activeInternet);
-    backup.save("activeInternet", activeInternet=="true"?"false":"true");
-    if(activeInternet=="true"){
+    dynamic activeInternet = await backup.read("activeInternet", "true");
+    backup.save("activeInternet", activeInternet == "true" ? "false" : "true");
+    if (activeInternet == "true") {
       setState(() {
         iconInternet = Icon(Icons.cloud_off);
         estadoInternet = "Internet Inactivo";
-
       });
-    }else{
+    } else {
       setState(() {
         iconInternet = Icon(Icons.cloud);
         estadoInternet = "Internet Activo";
-
       });
     }
   }
+
   String user = "", name = "";
   int id = -1, ubigeId = -1, _selectedDrawerIndex = 1;
   void _exitApp() async {
@@ -114,7 +133,7 @@ class _MyHomePageState extends State<MainApp> {
     switch (_selectedDrawerIndex) {
       case 1:
         return new WizardForm(widget.user);
-        case 2:
+      case 2:
         return new LocalDonations();
       default:
         return new Text("error");
@@ -124,79 +143,85 @@ class _MyHomePageState extends State<MainApp> {
   @override
   void initState() {
     super.initState();
+
     if (widget.user != null) {
       user = widget.user.getUser();
       name = widget.user.getName();
       id = widget.user.getId();
       ubigeId = widget.user.getubigeoId();
       readStatusInternet();
+      getVersionNumber();
     }
-
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          title: Text(widget.title),
-          actions: <Widget>[
-           
-            IconButton(
-              icon: iconInternet,
-              tooltip: estadoInternet,
-              onPressed: () {
-                internetStatus();
+      appBar: AppBar(
+        title: Text(widget.title),
+        actions: <Widget>[
+          IconButton(
+            icon: iconInternet,
+            tooltip: estadoInternet,
+            onPressed: () {
+              internetStatus();
+            },
+          )
+        ],
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: <Widget>[
+            DrawerHeader(
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                ),
+                child: Column(
+                  children: <Widget>[
+                    Text(
+                      user,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                      ),
+                    ),
+                    Image(
+                      image: AssetImage("assets/logo.png"),
+                      fit: BoxFit.contain,
+                      height: 100,
+                    )
+                  ],
+                )),
+            ListTile(
+              leading: Icon(Icons.map),
+              title: Text('Donaciones'),
+              onTap: () {
+                setDrawer(1);
               },
-            )
+            ),
+            ListTile(
+              leading: Icon(Icons.cloud_upload),
+              title: Text('Sincronización'),
+              onTap: () {
+                setDrawer(2);
+              },
+            ),
+            Divider(),
+            ListTile(
+              leading: Icon(Icons.exit_to_app),
+              title: Text('Salir'),
+              onTap: _exitApp,
+            ),
+            Container(
+              alignment: Alignment.bottomCenter,
+              child: Text('v. '+_packageInfo.version),
+
+            ),
           ],
         ),
-        drawer: Drawer(
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: <Widget>[
-              DrawerHeader(
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                  ),
-                  child: Column(
-                    children: <Widget>[
-                      Text(
-                        user,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                        ),
-                      ),
-                      Image(
-                        image: AssetImage("assets/logo.png"),
-                        fit: BoxFit.contain,
-                        height: 100,
-                      )
-                    ],
-                  )),
-              ListTile(
-                leading: Icon(Icons.map),
-                title: Text('Donaciones'),
-                onTap: () {
-                  setDrawer(1);
-                },
-              ),
-                            ListTile(
-                leading: Icon(Icons.cloud_upload),
-                title: Text('Sincronización'),
-                onTap: () {
-                  setDrawer(2);
-                },
-              ),
-              Divider(),
-              ListTile(
-                leading: Icon(Icons.exit_to_app),
-                title: Text('Salir'),
-                onTap: _exitApp,
-              ),
-            ],
-          ),
-        ),
-        body: getCurrentView(), );
+      ),
+      body: getCurrentView(),
+    );
   }
 }

@@ -19,6 +19,8 @@ import 'MainApp.dart';
 import 'package:estado/module/main/LoadingDialog.dart';
 import 'package:estado/module/sotorage/FormBackup.dart';
 import 'package:estado/module/main/DropdownField.dart';
+import 'dart:io';
+import 'package:data_connection_checker/data_connection_checker.dart';
 
 TextInputType _inputType = TextInputType.number;
 var tiposDocumento = [];
@@ -54,18 +56,70 @@ class WizardFormBloc extends FormBloc<String, String> {
     return null;
   }
 
+  Future<bool> isInternet() async {
+    try {
+      var connectivityResult = await (Connectivity().checkConnectivity());
+      if (connectivityResult == ConnectivityResult.mobile) {
+        // I am connected to a mobile network, make sure there is actually a net connection.
+        if (await DataConnectionChecker().hasConnection) {
+           try {
+            var docs = await helper.getDocuments();
+              if (docs == null) {
+                return false;
+              }
+            } on SocketException catch (_) {
+              return false;
+            } catch(ex){
+              return false;
+            }
+          // Mobile data detected & internet connection confirmed.
+          return true;
+        } else {
+          // Mobile data detected but no internet connection found.
+          return false;
+        }
+      } else if (connectivityResult == ConnectivityResult.wifi) {
+        // I am connected to a WIFI network, make sure there is actually a net connection.
+        if (await DataConnectionChecker().hasConnection) {
+          try {
+            var docs = await helper.getDocuments();
+              if (docs == null) {
+                return false;
+              }
+            } on SocketException catch (_) {
+              return false;
+            } catch(ex){
+              return false;
+            }
+          // Wifi detected & internet connection confirmed.
+          return true;
+        } else {
+          // Wifi detected but no internet connection found.
+          return false;
+        }
+      } else {
+        // Neither mobile data or WIFI detected, not internet connection found.
+        return false;
+      }
+    } on SocketException catch (_) {
+      return false;
+    }
+  }
+
   @override
   void onLoading() async {
     super.onLoading();
     await backup.open();
+    final prefs = await SharedPreferences.getInstance();
+    dialogLoadingData(Icons.check_circle, Colors.green,
+        "Verificando conexión a internet...", contexto);
 
-    var connectivityResult = await (Connectivity().checkConnectivity());
+    bool connectivityResult = await isInternet();
+    cerrarDialogGlobal(contexto);
     var zonaentregainitvalue;
     var parentescoinitvalue;
     dynamic activeInternet = await backup.read("activeInternet", "true");
-    if (activeInternet == "true"
-        ? (connectivityResult != ConnectivityResult.none)
-        : false) {
+    if (activeInternet == "true" ? (connectivityResult) : false) {
       dialogLoadingData(
           Icons.check_circle,
           Colors.green,
@@ -171,32 +225,33 @@ class WizardFormBloc extends FormBloc<String, String> {
           }
         }
 
-        var prefs = await SharedPreferences.getInstance();
-        print("helper.checkUser");
-        await helper
-            .checkUser(prefs.getString('usuario').toString(),prefs.getString('contrasena').toString())
-            .then((usuarioExiste) {
-          if (!usuarioExiste) {
-            //si no existe el usuario
-            responseDialogSaved(Icons.error, Colors.red,
-                "El usuario ya no existe en el sistema", contexto, () async {
-              final prefs = await SharedPreferences.getInstance();
-              prefs.clear();
-              //Navigator.pop(contexto);
-              Navigator.pushReplacementNamed(contexto, '/login');
-            });
-          }
-        }).catchError((onError) {
-          print("helper.checkUser2 ERror");
-          print(onError);
-        });
-
+        String usu = prefs.getString('usuario').toString(),
+            contrasena = prefs.getString('contrasena').toString();
+        if (usu != "" && contrasena != "") {
+          print("helper.checkUser");
+          await helper.checkUser(usu, contrasena).then((usuarioExiste) {
+            if (usuarioExiste["estado"] == "error") {
+              //si no existe el usuario
+              responseDialogSaved(
+                  Icons.error, Colors.red, usuarioExiste["mensaje"], contexto,
+                  () async {
+                prefs.clear();
+                Navigator.pushReplacementNamed(contexto, '/login');
+              });
+            }
+          }).catchError((onError) {
+            print("helper.checkUser2 ERror");
+            print(onError);
+          });
+        }
       } else {
         emitLoadFailed();
         responseDialog(Icons.error, Colors.red,
             "Ocurrió un error al obtener información del servidor!", contexto);
       }
     } else {
+      responseDialog(
+          Icons.warning, Colors.yellow, "No hay conexión a internet", contexto);
       //sin internet
       //await storage.open();
       var docs = await storage.getAll("tipodocumento", (var maps, int index) {
@@ -305,6 +360,7 @@ class WizardFormBloc extends FormBloc<String, String> {
       }
     ]);
     geoLocation = await getLocation();
+    userId = prefs.getInt('id');
   }
 
   var select1 = SelectFieldBloc(
@@ -362,6 +418,7 @@ class WizardFormBloc extends FormBloc<String, String> {
   var direcction = TextFieldBloc(name: 'direccion');
   var populatedCenter = TextFieldBloc(name: 'centro_poblado');
   var ghost = TextFieldBloc(name: 'ghost');
+
   WizardFormBloc(int uId, int id, bool sil, BuildContext c)
       : super(isLoading: true) {
     documentNumber.addValidators([
@@ -408,7 +465,8 @@ class WizardFormBloc extends FormBloc<String, String> {
 
     this.ubigeoId = uId;
     _ubigeoId = uId;
-    this.userId = id;
+    //this.userId = id;
+
     //this.savedInLocal = sil;
     this.contexto = c;
 
@@ -460,23 +518,38 @@ class WizardFormBloc extends FormBloc<String, String> {
         emitFailure(failureResponse: "Adjunte una foto de la Evidencia 1");
       } else {
         dynamic activeInternet = await backup.read("activeInternet", "true");
-        var connectivityResult = await (Connectivity().checkConnectivity());
-        if (activeInternet=="true" ? (connectivityResult != ConnectivityResult.none) : false) {
+        bool connectivityResult = await isInternet();
+
+        if (activeInternet == "true" ? (connectivityResult) : false) {
           var prefs = await SharedPreferences.getInstance();
-          print("helper.checkUser");
-          bool usuarioExiste = await helper.checkUser(prefs.getString('usuario').toString(),prefs.getString('contrasena').toString());
-          if (!usuarioExiste) {
-              //si no existe el usuario
-              responseDialogSaved(Icons.error, Colors.red,
-                  "El usuario ya no existe en el sistema", contexto, () async {
-                final prefs = await SharedPreferences.getInstance();
-                prefs.clear();
-                Navigator.pushReplacementNamed(contexto, '/login');
-              });
-              return;
+          String usu = prefs.getString('usuario').toString(),
+              contrasena = prefs.getString('contrasena').toString();
+          if (usu != "" && contrasena != "") {
+            await helper.checkUser(usu, contrasena).then((usuarioExiste) {
+              if (usuarioExiste["estado"] == "error") {
+                //si no existe el usuario
+                responseDialogSaved(
+                    Icons.error, Colors.red, usuarioExiste["mensaje"], contexto,
+                    () async {
+                  prefs.clear();
+                  Navigator.pushReplacementNamed(contexto, '/login');
+                });
+              }
+            }).catchError((onError) {
+              print("helper.checkUser2 ERror");
+              print(onError);
+            });
           }
         }
-        bool send = await confirmSave(contexto, "¿Está seguro(a) de enviar?");
+        bool send = false, sendLocal = false;
+        if (activeInternet == "true" ? (connectivityResult) : false) {
+          send = await confirmSave(contexto, "¿Está seguro(a) de enviar?");
+        } else {
+          send = await confirmSave(contexto,
+              "No hay conexión a internet, se va a guardar en local para luego sincronizar.");
+          sendLocal = true;
+        }
+
         if (send) {
           var tipodoc = await backup.read("select1", null);
           var frnumero_documento = await backup.read("frnumero_documento", "");
@@ -485,6 +558,7 @@ class WizardFormBloc extends FormBloc<String, String> {
           var frnombres = await backup.read("frnombres", "");
           var frparentesco = await backup.read("parentesco", "0");
           var zonaentrega_ = await backup.read("zonaentrega", "0");
+          print("sendddd userId");print(userId);
           dynamic status = await helper.save(
               state.toJson(),
               documentPath,
@@ -499,7 +573,8 @@ class WizardFormBloc extends FormBloc<String, String> {
               frapellido_paterno,
               frapellido_materno,
               frnombres,
-              frparentesco);
+              frparentesco,
+              sendLocal);
 
           if (status != null) {
             backup.remove("documentNumber");
@@ -522,32 +597,32 @@ class WizardFormBloc extends FormBloc<String, String> {
             backup.remove("frapellido_paterno");
             backup.remove("frapellido_materno");
             backup.remove("frnombres");
-            if (status == true) { //se guarda local
-              emitSuccess(successResponse: "Registro enviado con éxito.");
+            //if (status == true) {
+            if (status["estado"] == "success" && sendLocal) {
+              //se guarda local
+              emitSuccess(successResponse: status["mensaje"]);
             } else {
-              if (status == false) {// enviado a servidor pero sale error
-                emitFailure(
-                failureResponse:
-                    "Ocurrió un error inesperado, intentelo nuevamente!");
-              }else{ // enviado a servidor
-                if (tipodoc == "4") {
-                var data = json.decode(status);
-                responseDialogSaved(
-                    Icons.check,
-                    Colors.green,
-                    "EL CÓDIGO GENERADO PARA EL BENEFICIARIO ES: " +
-                        data["data"],
-                    contexto, () {
-                  emitSuccess(successResponse: "Registro enviado con éxito.");
-                });
+              //status == false
+              if (status["estado"] == "error") {
+                // enviado a servidor pero sale error
+                emitFailure(failureResponse: status["mensaje"]);
               } else {
-                emitSuccess(successResponse: "Registro enviado con éxito.");
-              }
+                // enviado a servidor
+                if (tipodoc == "4") {
+                  var data = json.decode(status["data"]);
+                  responseDialogSaved(
+                      Icons.check,
+                      Colors.green,
+                      "EL CÓDIGO GENERADO PARA EL BENEFICIARIO ES: " +
+                          data["data"],
+                      contexto, () {
+                    emitSuccess(successResponse: status["mensaje"]);
+                  });
+                } else {
+                  emitSuccess(successResponse: status["mensaje"]);
+                }
               }
             }
-
-            //
-
           } else {
             emitFailure(
                 failureResponse:
@@ -563,12 +638,11 @@ class WizardFormBloc extends FormBloc<String, String> {
   Future<bool> findDataFromServiceCanasta(
       WizardFormBloc b, String numero_documento) async {
     Helper help = new Helper();
-    var connectivityResult = await (Connectivity().checkConnectivity());
+    bool connectivityResult = await isInternet();
+
     dynamic activeInternet = await backup.read("activeInternet", "true");
     var response = false;
-    if (activeInternet == "false"
-        ? true
-        : (connectivityResult == ConnectivityResult.none)) {
+    if (activeInternet == "false" ? true : (connectivityResult == false)) {
       return false;
     }
     dialogLoadingData(Icons.check_circle, Colors.green,
@@ -660,12 +734,11 @@ class WizardFormBloc extends FormBloc<String, String> {
   Future<bool> findDataFromService(
       WizardFormBloc b, String numero_documento) async {
     Helper help = new Helper();
-    var connectivityResult = await (Connectivity().checkConnectivity());
+    bool connectivityResult = await isInternet();
+
     dynamic activeInternet = await backup.read("activeInternet", "true");
     var response = false;
-    if (activeInternet == "false"
-        ? true
-        : (connectivityResult == ConnectivityResult.none)) {
+    if (activeInternet == "false" ? true : (connectivityResult == false)) {
       return false;
     }
     dialogLoadingData(Icons.check_circle, Colors.green,
@@ -735,15 +808,62 @@ class _WizardFormState extends State<WizardForm> {
     });
   }
 
+  Future<bool> isInternet() async {
+    var connectivityResult = await (Connectivity().checkConnectivity());
+    if (connectivityResult == ConnectivityResult.mobile) {
+      // I am connected to a mobile network, make sure there is actually a net connection.
+      if (await DataConnectionChecker().hasConnection) {
+         try {
+            Helper helper = new Helper();
+            var docs = await helper.getDocuments();
+              if (docs == null) {
+                return false;
+              }
+            } on SocketException catch (_) {
+              return false;
+            } catch(ex){
+              return false;
+            }
+        // Mobile data detected & internet connection confirmed.
+        return true;
+      } else {
+        // Mobile data detected but no internet connection found.
+        return false;
+      }
+    } else if (connectivityResult == ConnectivityResult.wifi) {
+      // I am connected to a WIFI network, make sure there is actually a net connection.
+      if (await DataConnectionChecker().hasConnection) {
+        // Wifi detected & internet connection confirmed.
+         try {
+            Helper helper = new Helper();
+            var docs = await helper.getDocuments();
+              if (docs == null) {
+                return false;
+              }
+            } on SocketException catch (_) {
+              return false;
+            } catch(ex){
+              return false;
+            }
+        return true;
+      } else {
+        // Wifi detected but no internet connection found.
+        return false;
+      }
+    } else {
+      // Neither mobile data or WIFI detected, not internet connection found.
+      return false;
+    }
+  }
+
   Future readBackupZonaEntrega() async {
     final prefs = await SharedPreferences.getInstance();
-    var connectivityResult = await (Connectivity().checkConnectivity());
+    bool connectivityResult = await isInternet();
+
     var docs;
     //await storage.open();
     dynamic activeInternet = await backup.read("activeInternet", "true");
-    if (activeInternet == "true"
-        ? (connectivityResult != ConnectivityResult.none)
-        : false) {
+    if (activeInternet == "true" ? (connectivityResult) : false) {
       Helper helper = new Helper();
       docs = await helper.getZonasEntrega(prefs.getInt('ubigeo_id').toString());
       List list = docs;
@@ -771,13 +891,12 @@ class _WizardFormState extends State<WizardForm> {
   }
 
   Future readBackupSelect2() async {
-    var connectivityResult = await (Connectivity().checkConnectivity());
+    bool connectivityResult = await isInternet();
+
     var docs;
     //await storage.open();
     dynamic activeInternet = await backup.read("activeInternet", "true");
-    if (activeInternet == "true"
-        ? (connectivityResult != ConnectivityResult.none)
-        : false) {
+    if (activeInternet == "true" ? (connectivityResult) : false) {
       Helper helper = new Helper();
       docs = await helper.getDocuments();
       return docs;
@@ -807,18 +926,18 @@ class _WizardFormState extends State<WizardForm> {
       var residuo = 0, x_ = 0, posicion = 0;
       var factores = [3, 2, 7, 6, 5, 4, 3, 2],
           codigos = [
-        "6 ó K",
-        "7 ó A",
-        "8 ó B",
-        "9 ó C",
-        "0 ó D",
-        "1 ó E",
-        "1 ó F",
-        "2 ó G",
-        "3 ó H",
-        "4 ó I",
-        "5 ó J"
-      ];
+            "6 ó K",
+            "7 ó A",
+            "8 ó B",
+            "9 ó C",
+            "0 ó D",
+            "1 ó E",
+            "1 ó F",
+            "2 ó G",
+            "3 ó H",
+            "4 ó I",
+            "5 ó J"
+          ];
       numero_documento.runes.forEach((int rune) {
         var character = new String.fromCharCode(rune);
         suma += int.parse(character) * factores[i];
@@ -929,7 +1048,7 @@ class _WizardFormState extends State<WizardForm> {
       codigoDniGenerar(wizardFormBloc.documentNumber, wizardFormBloc);
     }
     return FormBlocStep(
-      title: Text('General'),
+      title: Text('General.'),
       content: Column(
         children: <Widget>[
           DropdownFieldBlocBuilder(
@@ -1110,7 +1229,7 @@ class _WizardFormState extends State<WizardForm> {
 
   FormBlocStep _aditionalStep(WizardFormBloc wizardFormBloc) {
     return FormBlocStep(
-      title: Text('Observaciones'),
+      title: Text('Observaciones.'),
       content: Column(
         children: <Widget>[
           FutureBuilder(
@@ -1119,7 +1238,7 @@ class _WizardFormState extends State<WizardForm> {
               if (snapshot.data != null) {
                 return DropDownField(
                   contentPadding: const EdgeInsets.only(bottom: 30.0),
-                  titleText: 'Zona de entrega',
+                  titleText: 'Zona / AAHH',
                   value: int.parse(snapshot.data) ?? _zonaentrega,
                   onChanged: (value) {
                     wizardFormBloc.backup.save("zonaentrega", value.toString());
@@ -1127,7 +1246,7 @@ class _WizardFormState extends State<WizardForm> {
                       _zonaentrega = value;
                     });
                   },
-                  hintText: "Zona de entrega",
+                  hintText: "Zona / AAHH",
                   dataSource: zonasEntregaG,
                   textField: 'nombre',
                   valueField: 'id',
@@ -1164,7 +1283,7 @@ class _WizardFormState extends State<WizardForm> {
               wizardFormBloc.backup.save("populatedCenter", val);
             },
             decoration: InputDecoration(
-              labelText: 'Centro poblado / Asentamiento',
+              labelText: 'Detalle',
               prefixIcon: Icon(Icons.location_city),
             ),
           ),
@@ -1251,7 +1370,7 @@ class _WizardFormState extends State<WizardForm> {
 FormBlocStep _atachmentStep(
     WizardFormBloc wizardFormBloc, BuildContext context) {
   return FormBlocStep(
-      title: Text('Adjuntos'),
+      title: Text('Adjuntos.'),
       content: AtachStep((String docPath) {
         wizardFormBloc.documentPath = docPath;
         wizardFormBloc.backup.save("documentPath", docPath);
@@ -1363,7 +1482,7 @@ Future<bool> confirmSave(BuildContext context, String msj) async {
         return Dialog(
           child: Container(
               padding: EdgeInsets.fromLTRB(10, 10, 10, 0),
-              height: 160,
+              height: 190,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: <Widget>[
