@@ -21,7 +21,7 @@ class LocalDonationsState extends State<LocalDonations> {
   Helper helper = new Helper();
   bool hasData = false;
   Future<dynamic> messageDialog(
-      IconData icon, Color color, String msj, bool isConfirm) async {
+      IconData icon, Color color, String msj, bool isConfirm,bool dismissible) async {
     List<Widget> children = [];
 
     if (isConfirm) {
@@ -34,12 +34,14 @@ class LocalDonationsState extends State<LocalDonations> {
     }
     children.add(FlatButton(
       child: Text("Aceptar"),
+      color: Colors.green,
+  textColor: Colors.white,
       onPressed: () {
         Navigator.of(context).pop(true);
       },
     ));
     return await showDialog(
-        barrierDismissible: !isConfirm,
+        barrierDismissible: dismissible,
         context: context,
         builder: (BuildContext bc) {
           return Dialog(
@@ -61,21 +63,24 @@ class LocalDonationsState extends State<LocalDonations> {
           );
         });
   }
-Future<bool> isInternet() async {
+
+  Future<bool> isInternet() async {
     var connectivityResult = await (Connectivity().checkConnectivity());
+    dynamic activeInternet = await backup.read("activeInternet", "true");
+    if (activeInternet == "false") return false;
     if (connectivityResult == ConnectivityResult.mobile) {
       // I am connected to a mobile network, make sure there is actually a net connection.
       if (await DataConnectionChecker().hasConnection) {
         try {
-            var docs = await helper.getDocuments();
-              if (docs == null) {
-                return false;
-              }
-            } on SocketException catch (_) {
-              return false;
-            } catch(ex){
-              return false;
-            }
+          var docs = await helper.getDocuments();
+          if (docs == null) {
+            return false;
+          }
+        } on SocketException catch (_) {
+          return false;
+        } catch (ex) {
+          return false;
+        }
         // Mobile data detected & internet connection confirmed.
         return true;
       } else {
@@ -85,16 +90,16 @@ Future<bool> isInternet() async {
     } else if (connectivityResult == ConnectivityResult.wifi) {
       // I am connected to a WIFI network, make sure there is actually a net connection.
       if (await DataConnectionChecker().hasConnection) {
-         try {
-            var docs = await helper.getDocuments();
-              if (docs == null) {
-                return false;
-              }
-            } on SocketException catch (_) {
-              return false;
-            } catch(ex){
-              return false;
-            }
+        try {
+          var docs = await helper.getDocuments();
+          if (docs == null) {
+            return false;
+          }
+        } on SocketException catch (_) {
+          return false;
+        } catch (ex) {
+          return false;
+        }
         // Wifi detected & internet connection confirmed.
         return true;
       } else {
@@ -106,100 +111,99 @@ Future<bool> isInternet() async {
       return false;
     }
   }
+
   void dialogLoadingData(
-    IconData icon, Color color, String msj, BuildContext context) {
-  showDialog(
-      barrierDismissible: false,
-      context: context,
-      builder: (BuildContext bc) {
-        return Dialog(
-          child: Container(
-              padding: EdgeInsets.fromLTRB(10, 10, 10, 0),
-              height: 160,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: <Widget>[
-                  CircularProgressIndicator(),
-                  Text(msj, style: TextStyle(fontSize: 14)),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                  )
-                ],
-              )),
-        );
-      });
-}
-   void upload(BuildContext contexto) async {
+      IconData icon, Color color, String msj, BuildContext context) {
+    showDialog(
+        barrierDismissible: false,
+        context: context,
+        builder: (BuildContext bc) {
+          return Dialog(
+            child: Container(
+                padding: EdgeInsets.fromLTRB(10, 10, 10, 0),
+                height: 160,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: <Widget>[
+                    CircularProgressIndicator(),
+                    Text(msj, style: TextStyle(fontSize: 14)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                    )
+                  ],
+                )),
+          );
+        });
+  }
+
+  Future<bool> upload(BuildContext contexto) async {
     await backup.open();
-    var internetSlow = false;
-    Future.delayed(Duration(seconds: 5)).then((_) {
-      internetSlow = true;
-    });
-    dialogLoadingData(
-          Icons.check_circle,
-          Colors.green,
-          "Verificando conexión a internet...",
-          contexto);
-    bool connectivityResult = await isInternet();
+    bool connectivityResult = false;
     dynamic activeInternet = await backup.read("activeInternet", "true");
-
-    if (activeInternet == "true"
-        ? (connectivityResult == false)
-        : true) {
-          Navigator.of(contexto).pop();
-      messageDialog(Icons.cloud_off, Colors.red, "¡Sin conexión!", false);
-    } else {
-        Navigator.of(contexto).pop();
+    if (activeInternet == "true") {
       if (hasData) {
-        if (internetSlow) {
-          await messageDialog(Icons.help, Colors.grey, "La conexión a internet está muy lenta.", true);
-        }
-
-        var prefs = await SharedPreferences.getInstance();
-        String usu = prefs.getString('usuario').toString(),contrasena= prefs.getString('contrasena').toString(); 
-        if (usu!="" && contrasena!="") {
-          await helper
-              .checkUser(usu,contrasena)
-              .then((usuarioExiste) async {
-            if (usuarioExiste["estado"]=="error") {
-              //si no existe el usuario
-              bool go2 = await messageDialog(Icons.error, Colors.grey,
-                 usuarioExiste["mensaje"], false);
-              if (go2) {
-                final prefs = await SharedPreferences.getInstance();
-                prefs.clear();
-                Navigator.pushReplacementNamed(context, '/login');
+        dialogLoadingData(Icons.check_circle, Colors.green,
+            "Verificando conexión a internet...", contexto);
+        connectivityResult = await isInternet();
+        if (connectivityResult) {
+          var prefs = await SharedPreferences.getInstance();
+          String usu = prefs.getString('usuario').toString(),
+              contrasena = prefs.getString('contrasena').toString();
+          bool usuarioValido = true;
+          if (usu != "" && contrasena != "") {
+            await helper.checkUser(usu, contrasena).then((usuarioExiste) async {
+              if (usuarioExiste["estado"] == "error") {
+                usuarioValido = false;
+                //si no existe el usuario
+                bool go2 = await messageDialog(
+                    Icons.error, Colors.red, usuarioExiste["mensaje"], false,false);
+                if (go2) {
+                  final prefs = await SharedPreferences.getInstance();
+                  prefs.clear();
+                  Navigator.pushReplacementNamed(context, '/login');
+                }
+                return false;
+              } else {
+                Navigator.of(contexto).pop();
+              }
+            }).catchError((onError) {
+              Navigator.of(contexto).pop();
+            });
+          } else {
+            Navigator.of(contexto).pop();
+          }
+          if (usuarioValido) {
+            bool go = await messageDialog(
+                Icons.help, Colors.grey, "¿Sincronizar?", true,true);
+            if (go) {
+              LoadingDialog.show(context);
+              dynamic result = await helper.upload();
+              LoadingDialog.hide(context);
+              if (result != null) {
+                if (result["estado"] != "error") {
+                  messageDialog(
+                      Icons.check_circle, Colors.green, "Sincronizado", false,false);
+                } else {
+                  messageDialog(
+                      Icons.error, Colors.red, result["mensaje"], false,false);
+                }
+              } else {
+                messageDialog(Icons.error, Colors.red,
+                    "Ocurrió un error al sincronizar", false,false);
               }
             }
-          }).catchError((onError) {
-            print("helper.checkUser2 ERror");
-            print(onError);
-          });
-        }
-
-        bool go = await messageDialog(Icons.help, Colors.grey, "¿Sincronizar?", true);
-        if (go) {
-          LoadingDialog.show(context);
-          dynamic result = await helper.upload();
-          LoadingDialog.hide(context);
-          if (result!=null) {
-            if (result["estado"]!="error") {
-              messageDialog(
-                Icons.check_circle, Colors.green, "Sincronizado", false);
-            }else{
-              messageDialog(
-                Icons.error, Colors.red, result["mensaje"], false);
-            }
-          } else {
-            messageDialog(
-                Icons.error, Colors.red, "Ocurrió un error al sincronizar", false);
           }
+        } else {
+          Navigator.of(contexto).pop();
+          messageDialog(Icons.cloud_off, Colors.red, "¡Sin conexión!", false,false);
         }
       } else {
         messageDialog(
-            Icons.check_circle, Colors.green, "Nada que sincronizar", false);
+            Icons.check_circle, Colors.green, "Nada que sincronizar", false,false);
       }
+    } else {
+      messageDialog(Icons.cloud_off, Colors.red, "¡Sin conexión!", false,false);
     }
   }
 
@@ -295,7 +299,7 @@ Future<bool> isInternet() async {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: (){
+        onPressed: () {
           upload(context);
         },
         child: const Icon(Icons.cloud_upload),

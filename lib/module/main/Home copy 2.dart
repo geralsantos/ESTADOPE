@@ -32,7 +32,6 @@ int _ubigeoId;
 FocusNode focusApeP;
 FocusNode focusNumDoc;
 final formatoFecha = new DateFormat('EEEE d');
-
 class WizardFormBloc extends FormBloc<String, String> {
   int ubigeoId, userId;
   String documentPath, beneficiarioPath, geoLocation;
@@ -58,8 +57,9 @@ class WizardFormBloc extends FormBloc<String, String> {
     return null;
   }
 
-  Future<dynamic> messageDialog(IconData icon, Color color, String msj,
-      bool isConfirm, bool dismissible) async {
+
+Future<dynamic> messageDialog(
+      IconData icon, Color color, String msj, bool isConfirm) async {
     List<Widget> children = [];
 
     if (isConfirm) {
@@ -72,14 +72,12 @@ class WizardFormBloc extends FormBloc<String, String> {
     }
     children.add(FlatButton(
       child: Text("Aceptar"),
-      color: Colors.green,
-  textColor: Colors.white,
       onPressed: () {
         Navigator.of(contexto).pop(true);
       },
     ));
     return await showDialog(
-        barrierDismissible: dismissible,
+        barrierDismissible: !isConfirm,
         context: contexto,
         builder: (BuildContext bc) {
           return Dialog(
@@ -101,25 +99,22 @@ class WizardFormBloc extends FormBloc<String, String> {
           );
         });
   }
-
   Future<bool> isInternet() async {
     try {
       var connectivityResult = await (Connectivity().checkConnectivity());
-      dynamic activeInternet = await backup.read("activeInternet", "true");
-      if (activeInternet == "false") return false;
       if (connectivityResult == ConnectivityResult.mobile) {
         // I am connected to a mobile network, make sure there is actually a net connection.
         if (await DataConnectionChecker().hasConnection) {
-          try {
+           try {
             var docs = await helper.getDocuments();
-            if (docs == null) {
+              if (docs == null) {
+                return false;
+              }
+            } on SocketException catch (_) {
+              return false;
+            } catch(ex){
               return false;
             }
-          } on SocketException catch (_) {
-            return false;
-          } catch (ex) {
-            return false;
-          }
           // Mobile data detected & internet connection confirmed.
           return true;
         } else {
@@ -131,14 +126,14 @@ class WizardFormBloc extends FormBloc<String, String> {
         if (await DataConnectionChecker().hasConnection) {
           try {
             var docs = await helper.getDocuments();
-            if (docs == null) {
+              if (docs == null) {
+                return false;
+              }
+            } on SocketException catch (_) {
+              return false;
+            } catch(ex){
               return false;
             }
-          } on SocketException catch (_) {
-            return false;
-          } catch (ex) {
-            return false;
-          }
           // Wifi detected & internet connection confirmed.
           return true;
         } else {
@@ -276,16 +271,16 @@ class WizardFormBloc extends FormBloc<String, String> {
         String usu = prefs.getString('usuario').toString(),
             contrasena = prefs.getString('contrasena').toString();
         if (usu != "" && contrasena != "") {
-          await helper.checkUser(usu, contrasena).then((usuarioExiste) async {
+          print("helper.checkUser");
+          await helper.checkUser(usu, contrasena).then((usuarioExiste) {
             if (usuarioExiste["estado"] == "error") {
               //si no existe el usuario
-              bool go2 = await messageDialog(Icons.error, Colors.red,
-                  usuarioExiste["mensaje"], false, false);
-              if (go2) {
-                final prefs = await SharedPreferences.getInstance();
+              responseDialogSaved(
+                  Icons.error, Colors.red, usuarioExiste["mensaje"], contexto,
+                  () async {
                 prefs.clear();
                 Navigator.pushReplacementNamed(contexto, '/login');
-              }
+              });
             }
           }).catchError((onError) {
             print("helper.checkUser2 ERror");
@@ -548,6 +543,8 @@ class WizardFormBloc extends FormBloc<String, String> {
   }
   @override
   void onSubmitting() async {
+       print("state");print(state);
+
     if (geoLocation == null) {
       geoLocation = await getLocation();
     }
@@ -566,138 +563,121 @@ class WizardFormBloc extends FormBloc<String, String> {
         emitFailure(failureResponse: "Adjunte una foto de la Evidencia 1");
       } else {
         dynamic activeInternet = await backup.read("activeInternet", "true");
-        bool connectivityResult = false;
-        bool usuarioValido = true;
-        if (activeInternet == "true") {
-          connectivityResult = await isInternet();
-          if (connectivityResult) {
-            var prefs = await SharedPreferences.getInstance();
-            String usu = prefs.getString('usuario').toString(),
-                contrasena = prefs.getString('contrasena').toString();
-            if (usu != "" && contrasena != "") {
-              await helper
-                  .checkUser(usu, contrasena)
-                  .then((usuarioExiste) async {
-                if (usuarioExiste["estado"] == "error") {
-                  usuarioValido = false;
+        bool connectivityResult = await isInternet();
 
-                  bool go2 = await messageDialog(Icons.error, Colors.red,
-                      usuarioExiste["mensaje"], false, false);
-                  if (go2) {
-                    final prefs = await SharedPreferences.getInstance();
-                    prefs.clear();
-                    Navigator.pop(contexto);
-                    Navigator.pushReplacementNamed(contexto, '/login');
-                  }
-                }
-              }).catchError((onError) {
-                print("helper.checkUser2 ERror");
-                print(onError);
-              });
-            }
+        if (activeInternet == "true" ? (connectivityResult) : false) {
+          var prefs = await SharedPreferences.getInstance();
+          String usu = prefs.getString('usuario').toString(),
+              contrasena = prefs.getString('contrasena').toString();
+          if (usu != "" && contrasena != "") {
+            await helper.checkUser(usu, contrasena).then((usuarioExiste) {
+              if (usuarioExiste["estado"] == "error") {
+                //si no existe el usuario
+                responseDialogSaved(
+                    Icons.error, Colors.red, usuarioExiste["mensaje"], contexto,
+                    () async {
+                  prefs.clear();
+                  Navigator.pushReplacementNamed(contexto, '/login');
+                });
+              }
+            }).catchError((onError) {
+              print("helper.checkUser2 ERror");
+              print(onError);
+            });
           }
         }
-        if (usuarioValido) {
-          bool send = false, sendLocal = false;
-          if (activeInternet == "true" ? (connectivityResult) : false) {
-            send = await messageDialog(Icons.help, Colors.grey,
-                "¿Está seguro(a) de enviar?", true, false);
-            //send = await confirmSave(contexto, "¿Está seguro(a) de enviar?");
-          } else {
-            send = await messageDialog(
-                Icons.help,
-                Colors.grey,
-                "Se va a guardar en local para luego sincronizar.",
-                true,
-                false);
-            //send = await confirmSave(contexto,  "No hay conexión a internet, se va a guardar en local para luego sincronizar.");
-            sendLocal = true;
-          }
+        bool send = false, sendLocal = false;
+        if (activeInternet == "true" ? (connectivityResult) : false) {
+          
+          //send = await messageDialog(Icons.help, Colors.grey, "¿Está seguro(a) de enviar?", true);
+          send = await confirmSave(contexto, "¿Está seguro(a) de enviar?");
+        } else {
+          //send = await messageDialog(Icons.help, Colors.grey,   "No hay conexión a internet, se va a guardar en local para luego sincronizar.", true);
+          send = await confirmSave(contexto,   "No hay conexión a internet, se va a guardar en local para luego sincronizar.");
+          sendLocal = true;
+        }
 
-          if (send) {
-            var tipodoc = await backup.read("select1", null);
-            var frnumero_documento =
-                await backup.read("frnumero_documento", "");
-            var frapellido_paterno =
-                await backup.read("frapellido_paterno", "");
-            var frapellido_materno =
-                await backup.read("frapellido_materno", "");
-            var frnombres = await backup.read("frnombres", "");
-            var frparentesco = await backup.read("parentesco", "0");
-            var zonaentrega_ = await backup.read("zonaentrega", "0");
-            var fecha_creacion = await helper.getDateTimeZone();
-            dynamic status = await helper.save(
-                state.toJson(),
-                documentPath,
-                beneficiarioPath,
-                ubigeoId,
-                userId,
-                geoLocation + "@@" + fecha_creacion,
-                compositions,
-                tipodoc,
-                zonaentrega_,
-                frnumero_documento,
-                frapellido_paterno,
-                frapellido_materno,
-                frnombres,
-                frparentesco,
-                sendLocal);
+        if (send) {
+          var tipodoc = await backup.read("select1", null);
+          var frnumero_documento = await backup.read("frnumero_documento", "");
+          var frapellido_paterno = await backup.read("frapellido_paterno", "");
+          var frapellido_materno = await backup.read("frapellido_materno", "");
+          var frnombres = await backup.read("frnombres", "");
+          var frparentesco = await backup.read("parentesco", "0");
+          var zonaentrega_ = await backup.read("zonaentrega", "0");
+          print("sendddd userId");print(userId);
+          var fecha_creacion = helper.getDateTimeZone();
+          dynamic status = await helper.save(
+              state.toJson(),
+              documentPath,
+              beneficiarioPath,
+              ubigeoId,
+              userId,
+              geoLocation+"@@"+fecha_creacion,
+              compositions,
+              tipodoc,
+              zonaentrega_,
+              frnumero_documento,
+              frapellido_paterno,
+              frapellido_materno,
+              frnombres,
+              frparentesco,
+              sendLocal);
 
-            if (status != null) {
-              backup.remove("documentNumber");
-              backup.remove("telephoneNumber");
-              backup.remove("firstName");
-              backup.remove("lastName");
-              backup.remove("name");
-              backup.remove("direcction");
-              backup.remove("description");
-              backup.remove("populatedCenter");
-              //backup.remove("select1");
-              //backup.remove("captureField");
-              //backup.remove("stateField");
-              backup.remove("compositions");
-              backup.remove("documentPath");
-              backup.remove("beneficiarioPath");
-              backup.remove("zonaentrega");
-              backup.remove("parentesco");
-              backup.remove("frnumero_documento");
-              backup.remove("frapellido_paterno");
-              backup.remove("frapellido_materno");
-              backup.remove("frnombres");
-              //if (status == true) {
-              if (status["estado"] == "success" && sendLocal) {
-                //se guarda local
-                emitSuccess(successResponse: status["mensaje"]);
+          if (status != null) {
+            backup.remove("documentNumber");
+            backup.remove("telephoneNumber");
+            backup.remove("firstName");
+            backup.remove("lastName");
+            backup.remove("name");
+            backup.remove("direcction");
+            backup.remove("description");
+            backup.remove("populatedCenter");
+            //backup.remove("select1");
+            //backup.remove("captureField");
+            //backup.remove("stateField");
+            backup.remove("compositions");
+            backup.remove("documentPath");
+            backup.remove("beneficiarioPath");
+            backup.remove("zonaentrega");
+            backup.remove("parentesco");
+            backup.remove("frnumero_documento");
+            backup.remove("frapellido_paterno");
+            backup.remove("frapellido_materno");
+            backup.remove("frnombres");
+            //if (status == true) {
+            if (status["estado"] == "success" && sendLocal) {
+              //se guarda local
+              emitSuccess(successResponse: status["mensaje"]);
+            } else {
+              //status == false
+              if (status["estado"] == "error") {
+                // enviado a servidor pero sale error
+                emitFailure(failureResponse: status["mensaje"]);
               } else {
-                //status == false
-                if (status["estado"] == "error") {
-                  // enviado a servidor pero sale error
-                  emitFailure(failureResponse: status["mensaje"]);
-                } else {
-                  // enviado a servidor
-                  if (tipodoc == "4") {
-                    var data = json.decode(status["data"]);
-                    responseDialogSaved(
-                        Icons.check,
-                        Colors.green,
-                        "EL CÓDIGO GENERADO PARA EL BENEFICIARIO ES: " +
-                            data["data"],
-                        contexto, () {
-                      emitSuccess(successResponse: status["mensaje"]);
-                    });
-                  } else {
+                // enviado a servidor
+                if (tipodoc == "4") {
+                  var data = json.decode(status["data"]);
+                  responseDialogSaved(
+                      Icons.check,
+                      Colors.green,
+                      "EL CÓDIGO GENERADO PARA EL BENEFICIARIO ES: " +
+                          data["data"],
+                      contexto, () {
                     emitSuccess(successResponse: status["mensaje"]);
-                  }
+                  });
+                } else {
+                  emitSuccess(successResponse: status["mensaje"]);
                 }
               }
-            } else {
-              emitFailure(
-                  failureResponse:
-                      "Ocurrió un error inesperado, intentelo nuevamente!");
             }
           } else {
-            emitSuccess(successResponse: "nosave", canSubmitAgain: true);
+            emitFailure(
+                failureResponse:
+                    "Ocurrió un error inesperado, intentelo nuevamente!");
           }
+        } else {
+          emitSuccess(successResponse: "nosave",canSubmitAgain:true);
         }
       }
     }
@@ -706,7 +686,7 @@ class WizardFormBloc extends FormBloc<String, String> {
   Future<bool> findDataFromServiceCanasta(
       WizardFormBloc b, String numero_documento) async {
     Helper help = new Helper();
-    /*bool connectivityResult = await isInternet();
+     /*bool connectivityResult = await isInternet();
 
    dynamic activeInternet = await backup.read("activeInternet", "true");
     var response = false;
@@ -876,22 +856,20 @@ class _WizardFormState extends State<WizardForm> {
 
   Future<bool> isInternet() async {
     var connectivityResult = await (Connectivity().checkConnectivity());
-    dynamic activeInternet = await backup.read("activeInternet", "true");
-    if (activeInternet == "false") return false;
     if (connectivityResult == ConnectivityResult.mobile) {
       // I am connected to a mobile network, make sure there is actually a net connection.
       if (await DataConnectionChecker().hasConnection) {
-        try {
-          Helper helper = new Helper();
-          var docs = await helper.getDocuments();
-          if (docs == null) {
-            return false;
-          }
-        } on SocketException catch (_) {
-          return false;
-        } catch (ex) {
-          return false;
-        }
+         try {
+            Helper helper = new Helper();
+            var docs = await helper.getDocuments();
+              if (docs == null) {
+                return false;
+              }
+            } on SocketException catch (_) {
+              return false;
+            } catch(ex){
+              return false;
+            }
         // Mobile data detected & internet connection confirmed.
         return true;
       } else {
@@ -902,17 +880,17 @@ class _WizardFormState extends State<WizardForm> {
       // I am connected to a WIFI network, make sure there is actually a net connection.
       if (await DataConnectionChecker().hasConnection) {
         // Wifi detected & internet connection confirmed.
-        try {
-          Helper helper = new Helper();
-          var docs = await helper.getDocuments();
-          if (docs == null) {
-            return false;
-          }
-        } on SocketException catch (_) {
-          return false;
-        } catch (ex) {
-          return false;
-        }
+         try {
+            Helper helper = new Helper();
+            var docs = await helper.getDocuments();
+              if (docs == null) {
+                return false;
+              }
+            } on SocketException catch (_) {
+              return false;
+            } catch(ex){
+              return false;
+            }
         return true;
       } else {
         // Wifi detected but no internet connection found.
@@ -960,6 +938,7 @@ class _WizardFormState extends State<WizardForm> {
 
   Future readBackupSelect2() async {
     bool connectivityResult = await isInternet();
+
     var docs;
     //await storage.open();
     dynamic activeInternet = await backup.read("activeInternet", "true");
@@ -972,6 +951,7 @@ class _WizardFormState extends State<WizardForm> {
       docs = await storage.getAll("tipodocumento", (var maps, int index) {
         return maps;
       });
+
       return json.decode(json.encode(docs));
     }
   }

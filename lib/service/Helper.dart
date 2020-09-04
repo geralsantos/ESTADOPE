@@ -9,15 +9,23 @@ import 'package:estado/module/sotorage/FormBackup.dart';
 import 'package:estado/module/sotorage/Storage.dart';
 import 'package:estado/module/sotorage/Storage2.dart';
 import 'package:estado/service/Composition.dart';
+import 'package:flutter_form_bloc/flutter_form_bloc.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+
 class Helper {
+  Future<String> getDateTimeZone() async {
+    DateTime now = DateTime.now();
+    String formattedDate = DateFormat('yyyy-MM-dd kk:mm:ss').format(now.toUtc().subtract(new Duration(hours: 5)));
+    return formattedDate;
+  }
   Future<bool> isInternet() async {
     var connectivityResult = await (Connectivity().checkConnectivity());
+    
     if (connectivityResult == ConnectivityResult.mobile) {
       // I am connected to a mobile network, make sure there is actually a net connection.
       if (await DataConnectionChecker().hasConnection) {
@@ -90,13 +98,11 @@ class Helper {
         "usuario": email.trim(),
         "contrasena": contrasena.trim(),
       });
-      print("request.body");
-      print(request.body == "200");
-      response["error"] = request.body == "200" ? "success" : "error";
+      response["estado"] = request.body == "200" ? "success" : "error";
       response["mensaje"] =request.body == "200"? "" : "El usuario ya no existe en el sistema";
       return response;
     } catch (e) {
-      response["error"] = "error";
+      response["estado"] = "error";
       response["mensaje"] = "Ocurrió un error verificando al usuario: "+e.toString();
       return response;
     }
@@ -108,7 +114,6 @@ class Helper {
       var request = await http.get(ROOT + '/registros/tipocaptura/ver/' + id);
       return json.decode(request.body);
     } catch (e) {
-      print(e);
     }
     return null;
   }
@@ -195,10 +200,6 @@ class Helper {
           "tipo_vivienda_id": row['tipo_vivienda_id'],
           "zona_entrega_id": row['zona_entrega_id'],
         };
-        print("args locale");
-        print(args);
-        print("usuario_id");
-        print(row['usuario_id']);
         List<Composition> compositions = new List();
         var compostionsRows = json.decode(row['composicion']);
         for (var c in compostionsRows) {
@@ -221,13 +222,9 @@ class Helper {
           row['fr_nombres'],
           row['fr_parentesco_id'],false
         );
-        print("uploaded");
-        print(uploaded);
         if (uploaded != null) {
           //uploaded != false
           if (uploaded["estado"] != "error") {
-            print("destroy");
-            print(row['id']);
             await s.destroy("donacion", row['id']);
           }else{
             response = uploaded;
@@ -346,14 +343,11 @@ class Helper {
           frnombres,
           int.parse(frparentesco));
     } else {
-      dynamic activeInternet = await backup.read("activeInternet", "true");
-    bool connectivityResult = await isInternet();
-      if(activeInternet == "true"
-        ? (connectivityResult == false)
-        : true){
-          response["estado"] = "error";
-          response["mensaje"] = "El dispositivo no cuenta con internet estable, favor de intentar nuevamente.";
-          return response;
+      bool connectivityResult =  await isInternet();
+      if(connectivityResult==false){
+        response["estado"] = "error";
+        response["mensaje"] = "El dispositivo no cuenta con internet estable, favor de intentar nuevamente.";
+        return response;
       }
       try {
         var postUri = Uri.parse(ROOT + '/registros/guardarBeneficiario/');
@@ -364,9 +358,6 @@ class Helper {
         request.fields['fr_apellido_paterno'] = frapellido_paterno.toString();
         request.fields['fr_apellido_materno'] = frapellido_materno.toString();
         request.fields['fr_nombres'] = frnombres.toString();
-        print("frparentesco.toString()");
-        print(frparentesco.toString());
-        print(frparentesco.toString() == "0");
         request.fields['fr_parentesco_id'] =
             frparentesco.toString() == "0" || frparentesco.toString() == ""
                 ? ""
@@ -381,8 +372,9 @@ class Helper {
         request.fields['observaciones'] = args['observaciones'];
         request.fields['estado_entrega_id'] =
             args['estado_entrega_id'].toString();
-        request.fields['georeferencia'] =
-            geoLocation == null ? '' : geoLocation;
+        request.fields['georeferencia'] = geoLocation == null ? '' : (geoLocation.indexOf("@@")!=-1 ? geoLocation.split("@@")[0].toString() : geoLocation.toString());
+        request.fields['fecha_creacion'] = geoLocation == null ? '' : (geoLocation.indexOf("@@")!=-1 ? (geoLocation.split("@@").length>=2 ? geoLocation.split("@@")[1].toString()  : '' ) : '');
+
         request.fields['usuario_id'] = user.toString();
         request.fields['ubigeo_id'] = ubigeo.toString();
         request.fields['numero_telefono'] = args['numero_telefono'].toString();
@@ -396,11 +388,6 @@ class Helper {
         request.fields['usuario'] = prefs.getString("usuario"??"");
         request.fields['contrasena'] = prefs.getString("contrasena"??"");
 
-        print("before save");
-        print(args);
-        print("user");
-        print(request.fields['usuario']);
-        print(request.fields['contrasena']);
         if (compositions != null && compositions.length > 0) {
           var i = 0;
           for (var c in compositions) {
@@ -411,27 +398,36 @@ class Helper {
           }
         }
         if (docPath != null) {
-          request.files
-              .add(await http.MultipartFile.fromPath("adjuntos[0]", docPath));
+          try {
+            request.files.add(await http.MultipartFile.fromPath("adjuntos[0]", docPath));
+          } catch (e) {
+          }
         }
         if (bePath != null) {
-          request.files
-              .add(await http.MultipartFile.fromPath("adjuntos[1]", bePath));
+          try {
+            request.files.add(await http.MultipartFile.fromPath("adjuntos[1]", bePath));
+          } catch (e) {
+          }
         }
         http.StreamedResponse responseStream = await request.send();
         final respStr = await http.Response.fromStream(responseStream);
-        print("respStr");
-        print(responseStream.statusCode);
  
         if (responseStream.statusCode == 200) {
-          final file = File(docPath);
-          if (file.existsSync()) {
-            await file.delete();
-          }
-          if (bePath != null) {
-            final file = File(bePath);
+          try {
+            final file = File(docPath);
             if (file.existsSync()) {
               await file.delete();
+            }
+          } catch (e) {
+          }
+          
+          if (bePath != null) {
+            try {
+              final file = File(bePath);
+              if (file.existsSync()) {
+                await file.delete();
+              }
+            } catch (e) {
             }
           }
           response["estado"] = "success";

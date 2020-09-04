@@ -63,16 +63,26 @@ class AtachStepState extends State<AtachStep> {
                 await _displayPickImageDialog(context,
                     (double maxWidth, double maxHeight, int quality) async {
                   try {
-                    final pickedFile = await _picker.getImage(
+                    var pickedFile = await _picker.getImage(
                       source: source,
                       maxWidth: 1500,
                       maxHeight: 2500,
                       imageQuality: 50,
                     );
                     String name = pref + DateTime.now().toString() + '.jpg';
+                    String rename = name.replaceAll(":","_");
                     String dirBefore = pathDart.dirname(pickedFile.path);
-                    final newPath = pathDart.join(dirBefore, name);
+                    final newPath = pathDart.join(dirBefore, rename);
                     File file = await File(pickedFile.path).copy(newPath);
+                    try {
+                      final file = File(pickedFile.path);
+                      if (file.existsSync()) {
+                        await file.delete();
+                      }
+                    } catch (e) {
+                    }
+                    
+                    //File file = await File(pickedFile.path).copy(newPath);
 
                     /*if (file.existsSync()) {
                       await file.delete();
@@ -82,7 +92,6 @@ class AtachStepState extends State<AtachStep> {
                       if (pref == "FIRMA_PADRON_DNI_") {
                         documentPath = newPath;
                         if (widget.documentCallback != null) {
-                          print("qqqqqqqqqq");
                           widget.documentCallback(newPath);
                         }
                       } else {

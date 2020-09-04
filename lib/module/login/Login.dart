@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:estado/module/main/MainApp.dart';
+import 'package:estado/service/Helper.dart';
 import 'package:estado/service/User.dart';
 import 'package:estado/utils/CustomValidator.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +12,9 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:estado/config.dart';
 import 'package:estado/module/main/LoadingDialog.dart';
+import 'package:connectivity/connectivity.dart';
+import 'package:data_connection_checker/data_connection_checker.dart';
+
 User loggedUser;
 
 class LoginFormBloc extends FormBloc<String, String> {
@@ -29,8 +35,58 @@ BuildContext context;
       ],
     );
   }
+  Future<bool> isInternet() async {
+     Helper helper = new Helper();
+    try {
+      var connectivityResult = await (Connectivity().checkConnectivity());
+      if (connectivityResult == ConnectivityResult.mobile) {
+        // I am connected to a mobile network, make sure there is actually a net connection.
+        if (await DataConnectionChecker().hasConnection) {
+          try {
+            var docs = await helper.getDocuments();
+            if (docs == null) {
+              return false;
+            }
+          } on SocketException catch (_) {
+            return false;
+          } catch (ex) {
+            return false;
+          }
+          // Mobile data detected & internet connection confirmed.
+          return true;
+        } else {
+          // Mobile data detected but no internet connection found.
+          return false;
+        }
+      } else if (connectivityResult == ConnectivityResult.wifi) {
+        // I am connected to a WIFI network, make sure there is actually a net connection.
+        if (await DataConnectionChecker().hasConnection) {
+          try {
+            var docs = await helper.getDocuments();
+            if (docs == null) {
+              return false;
+            }
+          } on SocketException catch (_) {
+            return false;
+          } catch (ex) {
+            return false;
+          }
+          // Wifi detected & internet connection confirmed.
+          return true;
+        } else {
+          // Wifi detected but no internet connection found.
+          return false;
+        }
+      } else {
+        // Neither mobile data or WIFI detected, not internet connection found.
+        return false;
+      }
+    } on SocketException catch (_) {
+      return false;
+    }
+  }
   Future<bool> _login() async {
-
+   
     final request = await http.post(ROOT+'/login/supervisor', body: {
       "usuario": email.value.trim(),
       "contrasena": password.value.trim(),
@@ -66,13 +122,22 @@ BuildContext context;
 
   @override
   void onSubmitting() async {
-    bool state = await _login();
-    // print(state);
-    if (state) {
-      emitSuccess();
-    } else {
-      emitFailure(failureResponse: 'Usuario y/o contraseña incorrecta!');
+    bool internet = await isInternet();
+    if(!internet){
+      emitFailure(failureResponse: 'No hay conexión a internet.');
+    }else{
+      print(internet);
+
+      bool state  = await _login();
+      // print(state);
+      if (state) {
+        emitSuccess();
+      } else {
+        emitFailure(failureResponse: 'Usuario y/o contraseña incorrecta!');
+      }
     }
+
+    
   }
 }
 
